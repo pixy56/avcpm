@@ -28,10 +28,6 @@ class TestDiffFoundation(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
         self.base_dir = os.path.join(self.test_dir, ".avcpm")
         os.makedirs(self.base_dir, exist_ok=True)
-        
-        # Create an agent for commits - use the base_dir in setup
-        os.environ['AVCPM_TEST_DIR'] = self.base_dir
-        agent.create_agent("test-agent", "Test Agent", base_dir=self.base_dir)
     
     def tearDown(self):
         """Cleanup."""
@@ -94,8 +90,9 @@ class TestCommitDiff(unittest.TestCase):
         self.base_dir = os.path.join(self.test_dir, ".avcpm")
         os.makedirs(self.base_dir, exist_ok=True)
         
-        # Create agent with base_dir
-        agent.create_agent("test-agent", "Test Agent", base_dir=self.base_dir)
+        # Create agent and get the generated agent_id
+        agent_data = agent.create_agent("Test Agent", "test@example.com", base_dir=self.base_dir)
+        self.agent_id = agent_data["agent_id"]
         
         # Create test files
         self.test_file = os.path.join(self.test_dir, "test.py")
@@ -103,7 +100,7 @@ class TestCommitDiff(unittest.TestCase):
             f.write("def hello():\n    return 'hello'\n")
         
         # Make first commit
-        commit.commit("TASK-001", "test-agent", "Initial commit", [self.test_file], base_dir=self.base_dir)
+        commit.commit("TASK-001", self.agent_id, "Initial commit", [self.test_file], base_dir=self.base_dir)
         
         # Get commit ID
         ledger_dir = branch.get_branch_ledger_dir("main", self.base_dir)
@@ -114,7 +111,7 @@ class TestCommitDiff(unittest.TestCase):
         with open(self.test_file, "w") as f:
             f.write("def hello():\n    return 'world'\n")
         
-        commit.commit("TASK-002", "test-agent", "Update return value", [self.test_file], base_dir=self.base_dir)
+        commit.commit("TASK-002", self.agent_id, "Update return value", [self.test_file], base_dir=self.base_dir)
         
         commits = sorted([f for f in os.listdir(ledger_dir) if f.endswith(".json")])
         self.commit_b = commits[-1].replace(".json", "")
@@ -148,7 +145,7 @@ class TestCommitDiff(unittest.TestCase):
         
         self.assertEqual(result["commit_id"], self.commit_a)
         self.assertIn("timestamp", result)
-        self.assertEqual(result["agent_id"], "test-agent")
+        self.assertEqual(result["agent_id"], self.agent_id)
         self.assertEqual(result["task_id"], "TASK-001")
         self.assertIn("rationale", result)
         self.assertIn("changes", result)
@@ -171,8 +168,9 @@ class TestHistory(unittest.TestCase):
         self.base_dir = os.path.join(self.test_dir, ".avcpm")
         os.makedirs(self.base_dir, exist_ok=True)
         
-        # Create agent
-        agent.create_agent("test-agent", "Test Agent", self.base_dir)
+        # Create agent and get the generated agent_id
+        agent_data = agent.create_agent("Test Agent", "test@example.com", base_dir=self.base_dir)
+        self.agent_id = agent_data["agent_id"]
         
         # Create test file
         self.test_file = os.path.join(self.test_dir, "test.py")
@@ -182,7 +180,7 @@ class TestHistory(unittest.TestCase):
             with open(self.test_file, "w") as f:
                 f.write(f"# Version {i + 1}\n")
             
-            commit.commit(f"TASK-00{i+1}", "test-agent", f"Commit {i+1}", 
+            commit.commit(f"TASK-00{i+1}", self.agent_id, f"Commit {i+1}", 
                         [self.test_file], base_dir=self.base_dir)
     
     def tearDown(self):
@@ -229,8 +227,9 @@ class TestBlame(unittest.TestCase):
         self.base_dir = os.path.join(self.test_dir, ".avcpm")
         os.makedirs(self.base_dir, exist_ok=True)
         
-        # Create agent
-        agent.create_agent("test-agent", "Test Agent", self.base_dir)
+        # Create agent and get the generated agent_id
+        agent_data = agent.create_agent("Test Agent", "test@example.com", base_dir=self.base_dir)
+        self.agent_id = agent_data["agent_id"]
         
         # Create test file with content
         self.test_file = os.path.join(self.test_dir, "test.py")
@@ -238,7 +237,7 @@ class TestBlame(unittest.TestCase):
             f.write("line1\nline2\nline3\n")
         
         # Make commit
-        commit.commit("TASK-001", "test-agent", "Initial commit", 
+        commit.commit("TASK-001", self.agent_id, "Initial commit", 
                     [self.test_file], base_dir=self.base_dir)
     
     def tearDown(self):
@@ -256,7 +255,7 @@ class TestBlame(unittest.TestCase):
             self.assertIn("content", line)
             self.assertIn("commit_id", line)
             self.assertIn("agent_id", line)
-            self.assertEqual(line["agent_id"], "test-agent")
+            self.assertEqual(line["agent_id"], self.agent_id)
     
     def test_blame_no_history(self):
         """Test blame on file with no history."""
@@ -274,15 +273,16 @@ class TestBranchDiff(unittest.TestCase):
         self.base_dir = os.path.join(self.test_dir, ".avcpm")
         os.makedirs(self.base_dir, exist_ok=True)
         
-        # Create agent
-        agent.create_agent("test-agent", "Test Agent", self.base_dir)
+        # Create agent and get the generated agent_id
+        agent_data = agent.create_agent("Test Agent", "test@example.com", base_dir=self.base_dir)
+        self.agent_id = agent_data["agent_id"]
         
         # Create file and commit to main
         self.test_file = os.path.join(self.test_dir, "test.py")
         with open(self.test_file, "w") as f:
             f.write("# Main version\n")
         
-        commit.commit("TASK-001", "test-agent", "Main commit", 
+        commit.commit("TASK-001", self.agent_id, "Main commit", 
                     [self.test_file], base_dir=self.base_dir)
         
         # Create feature branch
@@ -292,7 +292,7 @@ class TestBranchDiff(unittest.TestCase):
         with open(self.test_file, "w") as f:
             f.write("# Feature version\n")
         
-        commit.commit("TASK-002", "test-agent", "Feature commit", 
+        commit.commit("TASK-002", self.agent_id, "Feature commit", 
                     [self.test_file], branch_name="feature", base_dir=self.base_dir)
     
     def tearDown(self):
