@@ -12,6 +12,11 @@ from avcpm_branch import (
     get_branch_ledger_dir,
     _ensure_main_branch
 )
+from avcpm_lifecycle import (
+    on_commit,
+    validate_commit_allowed,
+    init_lifecycle_config
+)
 
 DEFAULT_BASE_DIR = ".avcpm"
 
@@ -48,7 +53,7 @@ def calculate_checksum(filepath):
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
 
-def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base_dir=DEFAULT_BASE_DIR):
+def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base_dir=DEFAULT_BASE_DIR, skip_validation=False):
     """
     Commit files to a branch.
     
@@ -59,13 +64,24 @@ def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base
         files_to_commit: List of file paths to commit
         branch_name: Branch to commit to (uses current branch if None)
         base_dir: Base directory for AVCPM
+        skip_validation: Skip validation (for admin/debug)
     """
     ensure_directories(branch_name, base_dir)
+    
+    # Initialize lifecycle config if needed
+    init_lifecycle_config(base_dir)
     
     # Validate agent_id exists
     agent = get_agent(agent_id, base_dir)
     if agent is None:
         raise ValueError(f"Agent {agent_id} not found. Create agent first using avcpm_agent.create_agent()")
+    
+    # Validate commit is allowed (lifecycle rules)
+    if not skip_validation:
+        allowed, msg = validate_commit_allowed(task_id, agent_id, base_dir)
+        if not allowed:
+            print(f"Error: {msg}")
+            sys.exit(1)
     
     staging_dir = get_staging_dir(branch_name, base_dir)
     ledger_dir = get_ledger_dir(branch_name, base_dir)
@@ -110,6 +126,14 @@ def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base
     
     current_branch = branch_name or get_current_branch(base_dir)
     print(f"Commit {commit_id} written to ledger (branch: {current_branch}). Files moved to staging.")
+    
+    # Trigger lifecycle hook for auto-transition
+    try:
+        success, msg = on_commit(task_id, commit_id, agent_id, base_dir)
+        if success:
+            print(f"Lifecycle: {msg}")
+    except Exception as e:
+        print(f"Warning: Lifecycle hook failed: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 5:

@@ -18,6 +18,10 @@ from avcpm_conflict import (
     CONFLICT_STATUS_OPEN,
     auto_merge_possible
 )
+from avcpm_lifecycle import (
+    on_merge,
+    init_lifecycle_config
+)
 
 DEFAULT_BASE_DIR = ".avcpm"
 
@@ -45,7 +49,7 @@ def get_ledger_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR):
         branch_name = get_current_branch(base_dir)
     return get_branch_ledger_dir(branch_name, base_dir)
 
-def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BASE_DIR, auto_resolve=False):
+def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BASE_DIR, auto_resolve=False, agent_id=None):
     """
     Merge a commit into a target branch.
     
@@ -55,7 +59,10 @@ def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BA
         target_branch: Branch to merge into (uses current branch if None)
         base_dir: Base directory for AVCPM
         auto_resolve: If True, attempt to auto-resolve non-conflicting changes
+        agent_id: Agent performing the merge (for lifecycle hooks)
     """
+    # Initialize lifecycle config if needed
+    init_lifecycle_config(base_dir)
     # Determine source and target branches
     if source_branch is None:
         source_branch = get_current_branch(base_dir)
@@ -150,6 +157,18 @@ def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BA
             print(f"Marked branch '{source_branch}' as merged")
     
     print(f"Successfully merged commit {commit_id} into branch '{target_branch}'.")
+    
+    # Trigger lifecycle hook for auto-transition
+    task_id = commit_data.get("task_id")
+    merging_agent_id = agent_id or commit_data.get("agent_id")
+    
+    if task_id:
+        try:
+            success, msg = on_merge(task_id, commit_id, merging_agent_id, base_dir)
+            if success:
+                print(f"Lifecycle: {msg}")
+        except Exception as e:
+            print(f"Warning: Lifecycle hook failed: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
