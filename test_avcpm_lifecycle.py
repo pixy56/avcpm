@@ -236,9 +236,9 @@ class TestValidationRules(unittest.TestCase):
         create_task("TASK-003", "Test task", 
                    depends_on="DEP-001", base_dir=self.base_dir)
         
-        # Move task to in-progress
+        # Move task to in-progress (force to bypass dependency check in move_task)
         from avcpm_task import move_task
-        move_task("TASK-003", "in-progress", base_dir=self.base_dir)
+        move_task("TASK-003", "in-progress", force=True, base_dir=self.base_dir)
         
         allowed, msg = validate_commit_allowed("TASK-003", self.agent_id, self.base_dir)
         self.assertFalse(allowed)
@@ -489,9 +489,9 @@ class TestTaskTypeConfig(unittest.TestCase):
         task_data["type"] = "hotfix"
         save_task("TASK-002", task_data, base_dir=self.base_dir)
         
-        # Move to in-progress
+        # Move to in-progress (force to bypass dependency check in move_task)
         from avcpm_task import move_task
-        move_task("TASK-002", "in-progress", base_dir=self.base_dir)
+        move_task("TASK-002", "in-progress", force=True, base_dir=self.base_dir)
         
         # Should pass validation
         allowed, msg = validate_commit_allowed("TASK-002", self.agent_id, self.base_dir)
