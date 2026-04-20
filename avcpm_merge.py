@@ -4,6 +4,13 @@ import shutil
 import json
 
 from avcpm_agent import verify_commit_signature
+from avcpm_branch import (
+    get_current_branch,
+    get_branch_staging_dir,
+    get_branch_ledger_dir,
+    get_branch,
+    BRANCH_STATUS_MERGED
+)
 
 DEFAULT_BASE_DIR = ".avcpm"
 
@@ -11,18 +18,47 @@ def get_reviews_dir(base_dir=DEFAULT_BASE_DIR):
     """Get the reviews directory path."""
     return os.path.join(base_dir, "reviews")
 
-def get_staging_dir(base_dir=DEFAULT_BASE_DIR):
-    """Get the staging directory path."""
+def get_global_staging_dir(base_dir=DEFAULT_BASE_DIR):
+    """Get the global staging directory path (legacy)."""
     return os.path.join(base_dir, "staging")
 
-def get_ledger_dir(base_dir=DEFAULT_BASE_DIR):
-    """Get the ledger directory path."""
+def get_global_ledger_dir(base_dir=DEFAULT_BASE_DIR):
+    """Get the global ledger directory path (legacy)."""
     return os.path.join(base_dir, "ledger")
 
-def merge(commit_id, base_dir=DEFAULT_BASE_DIR):
+def get_staging_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR):
+    """Get the staging directory path for a branch."""
+    if branch_name is None:
+        branch_name = get_current_branch(base_dir)
+    return get_branch_staging_dir(branch_name, base_dir)
+
+def get_ledger_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR):
+    """Get the ledger directory path for a branch."""
+    if branch_name is None:
+        branch_name = get_current_branch(base_dir)
+    return get_branch_ledger_dir(branch_name, base_dir)
+
+def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BASE_DIR):
+    """
+    Merge a commit into a target branch.
+    
+    Args:
+        commit_id: Commit ID to merge
+        source_branch: Branch containing the commit (uses current branch if None)
+        target_branch: Branch to merge into (uses current branch if None)
+        base_dir: Base directory for AVCPM
+    """
+    # Determine source and target branches
+    if source_branch is None:
+        source_branch = get_current_branch(base_dir)
+    if target_branch is None:
+        target_branch = get_current_branch(base_dir)
+    
     reviews_dir = get_reviews_dir(base_dir)
-    staging_dir = get_staging_dir(base_dir)
-    ledger_dir = get_ledger_dir(base_dir)
+    staging_dir = get_staging_dir(source_branch, base_dir)
+    ledger_dir = get_ledger_dir(source_branch, base_dir)
+    
+    print(f"Merging commit {commit_id} from branch '{source_branch}' into '{target_branch}'")
     
     # 1. Validate Approval
     review_path = os.path.join(reviews_dir, f"{commit_id}.review")
@@ -78,7 +114,17 @@ def merge(commit_id, base_dir=DEFAULT_BASE_DIR):
         else:
             print(f"Warning: Staging file {staging_file} missing.")
 
-    print(f"Successfully merged commit {commit_id} into production.")
+    # Update source branch status if it was merged
+    if source_branch != target_branch:
+        branch_meta = get_branch(source_branch, base_dir)
+        if branch_meta:
+            branch_meta["status"] = BRANCH_STATUS_MERGED
+            from avcpm_branch import get_branch_metadata_path
+            with open(get_branch_metadata_path(source_branch, base_dir), "w") as f:
+                json.dump(branch_meta, f, indent=4)
+            print(f"Marked branch '{source_branch}' as merged")
+    
+    print(f"Successfully merged commit {commit_id} into branch '{target_branch}'.")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
