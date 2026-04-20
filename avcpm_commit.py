@@ -3,7 +3,6 @@ import sys
 import json
 import hashlib
 from datetime import datetime
-import shutil
 
 from avcpm_agent import get_agent, sign_commit
 from avcpm_branch import (
@@ -16,6 +15,18 @@ from avcpm_lifecycle import (
     on_commit,
     validate_commit_allowed,
     init_lifecycle_config
+)
+from avcpm_security import sanitize_path
+from avcpm_security import sanitize_path, sanitize_path_list
+from avcpm_security import safe_copy, safe_read
+from avcpm_ledger_integrity import (
+    calculate_entry_hash,
+    get_last_commit_hash
+)
+from avcpm_auth import (
+    require_auth,
+    get_session_token_from_env,
+    validate_session
 )
 
 DEFAULT_BASE_DIR = ".avcpm"
@@ -46,12 +57,10 @@ def ensure_directories(branch_name=None, base_dir=DEFAULT_BASE_DIR):
     os.makedirs(get_ledger_dir(branch_name, base_dir), exist_ok=True)
     os.makedirs(get_staging_dir(branch_name, base_dir), exist_ok=True)
 
-def calculate_checksum(filepath):
-    sha256_hash = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(byte_block)
-    return sha256_hash.hexdigest()
+def calculate_checksum(filepath, base_dir=DEFAULT_BASE_DIR):
+    """Calculate SHA256 checksum of a file using safe read."""
+    content = safe_read(filepath, base_dir)
+    return hashlib.sha256(content).hexdigest()
 
 def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base_dir=DEFAULT_BASE_DIR, skip_validation=False):
     """
@@ -85,9 +94,29 @@ def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base
     
     staging_dir = get_staging_dir(branch_name, base_dir)
     ledger_dir = get_ledger_dir(branch_name, base_dir)
+    
+    # Sanitize file paths to prevent path traversal attacks
+    try:
+        # Files must be within the current working directory (production)
+        files_to_commit = [sanitize_path(f, os.getcwd()) for f in files_to_commit]
+    except ValueError as e:
+        print(f"Security Error: {e}")
+        sys.exit(1)
+    
+    # Sanitize file paths to prevent path traversal attacks
+    try:
+        # Files must be within the current working directory (production)
+        files_to_commit = [sanitize_path(f, os.getcwd()) for f in files_to_commit]
+    except ValueError as e:
+        print(f"Security Error: {e}")
+        sys.exit(1)
 
     commit_id = datetime.now().strftime("%Y%m%d%H%M%S")
     timestamp = datetime.now().isoformat()
+    
+    # Get the previous commit's hash for the integrity chain
+    current_branch = branch_name or get_current_branch(base_dir)
+    previous_hash = get_last_commit_hash(current_branch, base_dir)
     
     commit_meta = {
         "commit_id": commit_id,
@@ -95,7 +124,8 @@ def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base
         "agent_id": agent_id,
         "task_id": task_id,
         "rationale": rationale,
-        "changes": []
+        "changes": [],
+        "previous_hash": previous_hash
     }
 
     for filepath in files_to_commit:
@@ -103,10 +133,14 @@ def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base
             print(f"Warning: File {filepath} not found. Skipping.")
             continue
         
-        checksum = calculate_checksum(filepath)
-        # Copy file to staging
+        checksum = calculate_checksum(filepath, base_dir)
+        # Copy file to staging using safe copy
         staging_path = os.path.join(staging_dir, os.path.basename(filepath))
-        shutil.copy2(filepath, staging_path)
+        try:
+            safe_copy(filepath, staging_path, base_dir)
+        except Exception as e:
+            print(f"Security error copying {filepath}: {e}")
+            continue
         
         commit_meta["changes"].append({
             "file": filepath,
@@ -119,12 +153,14 @@ def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base
     commit_meta["signature"] = signature_data["signature"]
     commit_meta["changes_hash"] = signature_data["changes_hash"]
     
+    # Calculate and store the entry hash for integrity chain
+    commit_meta["entry_hash"] = calculate_entry_hash(commit_meta)
+    
     # Write to ledger
     ledger_path = os.path.join(ledger_dir, f"{commit_id}.json")
     with open(ledger_path, "w") as f:
         json.dump(commit_meta, f, indent=4)
     
-    current_branch = branch_name or get_current_branch(base_dir)
     print(f"Commit {commit_id} written to ledger (branch: {current_branch}). Files moved to staging.")
     
     # Trigger lifecycle hook for auto-transition

@@ -23,6 +23,7 @@ from avcpm_branch import (
     BRANCH_STATUS_ACTIVE,
     DEFAULT_BASE_DIR
 )
+from avcpm_security import safe_copy, safe_read
 
 # Backup metadata
 BACKUP_STATUS_ACTIVE = "active"
@@ -54,8 +55,8 @@ def _ensure_backups_dir(base_dir=DEFAULT_BASE_DIR):
     os.makedirs(get_backups_dir(base_dir), exist_ok=True)
 
 
-def _copy_directory_tree(src: str, dst: str):
-    """Copy a directory tree, preserving metadata."""
+def _copy_directory_tree(src: str, dst: str, base_dir: str = DEFAULT_BASE_DIR):
+    """Copy a directory tree, preserving metadata and using safe_copy."""
     if not os.path.exists(src):
         return
     
@@ -66,9 +67,9 @@ def _copy_directory_tree(src: str, dst: str):
         dst_path = os.path.join(dst, item)
         
         if os.path.isdir(src_path):
-            _copy_directory_tree(src_path, dst_path)
+            _copy_directory_tree(src_path, dst_path, base_dir)
         else:
-            shutil.copy2(src_path, dst_path)
+            safe_copy(src_path, dst_path, base_dir)
 
 
 def _get_production_file_path(filepath: str) -> str:
@@ -234,7 +235,11 @@ def rollback(commit_id: str, base_dir=DEFAULT_BASE_DIR, dry_run: bool = False) -
             parent_staging = _get_file_at_commit(filepath, parent_commit.get("commit_id"), base_dir)
             if parent_staging:
                 if not dry_run:
-                    shutil.copy2(parent_staging, prod_path)
+                    try:
+                        safe_copy(parent_staging, prod_path, base_dir)
+                    except Exception as e:
+                        print(f"Security error during rollback: {e}")
+                        continue
                 result["files_restored"].append({
                     "file": filepath,
                     "restored_from": parent_commit.get("commit_id")
@@ -364,10 +369,10 @@ def restore_file(filepath: str, commit_id: Optional[str] = None, base_dir=DEFAUL
         result["error"] = f"File {filepath} not found in commit {commit_id}"
         return result
     
-    # Copy to production
+    # Copy to production using safe_copy
     prod_path = _get_production_file_path(filepath)
     os.makedirs(os.path.dirname(prod_path) if os.path.dirname(prod_path) else ".", exist_ok=True)
-    shutil.copy2(staging_path, prod_path)
+    safe_copy(staging_path, prod_path, base_dir)
     
     result["restored_from"] = staging_path
     result["success"] = True
@@ -549,7 +554,7 @@ def create_backup(name: Optional[str] = None, base_dir=DEFAULT_BASE_DIR) -> str:
         from avcpm_branch import get_branch_metadata_path
         branch_meta_path = get_branch_metadata_path(branch_name, base_dir)
         if os.path.exists(branch_meta_path):
-            shutil.copy2(branch_meta_path, os.path.join(branch_backup_dir, "branch.json"))
+            safe_copy(branch_meta_path, os.path.join(branch_backup_dir, "branch.json"), base_dir)
         
         backup_meta["branches"].append(branch_name)
     
@@ -557,7 +562,7 @@ def create_backup(name: Optional[str] = None, base_dir=DEFAULT_BASE_DIR) -> str:
     config_path = os.path.join(base_dir, "config.json")
     if os.path.exists(config_path):
         config_backup = os.path.join(backup_path, "config.json")
-        shutil.copy2(config_path, config_backup)
+        safe_copy(config_path, config_backup, base_dir)
     
     # Save backup metadata
     with open(get_backup_metadata_path(backup_id, base_dir), "w") as f:
@@ -651,16 +656,16 @@ def restore_backup(backup_id: str, base_dir=DEFAULT_BASE_DIR) -> Dict:
             from avcpm_branch import get_branch_metadata_path
             branch_meta_backup = os.path.join(branch_backup_dir, "branch.json")
             if os.path.exists(branch_meta_backup):
-                shutil.copy2(branch_meta_backup, get_branch_metadata_path(branch_name, base_dir))
+                safe_copy(branch_meta_backup, get_branch_metadata_path(branch_name, base_dir), base_dir)
             
             result["branches_restored"].append(branch_name)
         except Exception as e:
             result["branches_failed"].append({"branch": branch_name, "error": str(e)})
     
-    # Restore config
+    # Restore config using safe_copy
     config_backup = os.path.join(backup_path, "config.json")
     if os.path.exists(config_backup):
-        shutil.copy2(config_backup, os.path.join(base_dir, "config.json"))
+        safe_copy(config_backup, os.path.join(base_dir, "config.json"), base_dir)
     
     # Update backup metadata
     backup_meta["status"] = BACKUP_STATUS_RESTORED

@@ -1043,6 +1043,7 @@ Examples:
     agent_create = agent_subparsers.add_parser("create", help="Create agent")
     agent_create.add_argument("name", help="Agent name")
     agent_create.add_argument("email", help="Agent email")
+    agent_create.add_argument("--encrypt", action="store_true", help="Encrypt private key with passphrase")
     
     # agent list
     agent_subparsers.add_parser("list", help="List agents")

@@ -1,6 +1,5 @@
 import os
 import sys
-import shutil
 import json
 
 from avcpm_agent import verify_commit_signature
@@ -22,6 +21,7 @@ from avcpm_lifecycle import (
     on_merge,
     init_lifecycle_config
 )
+from avcpm_security import sanitize_path
 
 DEFAULT_BASE_DIR = ".avcpm"
 
@@ -140,6 +140,12 @@ def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BA
         staging_file = change["staging_path"]
         if os.path.exists(staging_file):
             dest_file = change["file"]
+            # Sanitize destination path to prevent path traversal
+            try:
+                dest_file = sanitize_path(dest_file, os.getcwd())
+            except ValueError as e:
+                print(f"Security Error: Path traversal detected for {dest_file}: {e}")
+                sys.exit(1)
             # Simple copy/overwrite for Phase 1
             shutil.copy2(staging_file, dest_file)
             print(f"Merged: {dest_file}")
