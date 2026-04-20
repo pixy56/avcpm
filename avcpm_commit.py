@@ -5,6 +5,8 @@ import hashlib
 from datetime import datetime
 import shutil
 
+from avcpm_agent import get_agent, sign_commit
+
 DEFAULT_BASE_DIR = ".avcpm"
 
 def get_ledger_dir(base_dir=DEFAULT_BASE_DIR):
@@ -30,13 +32,20 @@ def calculate_checksum(filepath):
 def commit(task_id, agent_id, rationale, files_to_commit, base_dir=DEFAULT_BASE_DIR):
     ensure_directories(base_dir)
     
+    # Validate agent_id exists
+    agent = get_agent(agent_id, base_dir)
+    if agent is None:
+        raise ValueError(f"Agent {agent_id} not found. Create agent first using avcpm_agent.create_agent()")
+    
     staging_dir = get_staging_dir(base_dir)
     ledger_dir = get_ledger_dir(base_dir)
 
     commit_id = datetime.now().strftime("%Y%m%d%H%M%S")
+    timestamp = datetime.now().isoformat()
+    
     commit_meta = {
         "commit_id": commit_id,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": timestamp,
         "agent_id": agent_id,
         "task_id": task_id,
         "rationale": rationale,
@@ -59,6 +68,11 @@ def commit(task_id, agent_id, rationale, files_to_commit, base_dir=DEFAULT_BASE_
             "staging_path": staging_path
         })
 
+    # Generate signature for the commit
+    signature_data = sign_commit(commit_id, timestamp, commit_meta["changes"], agent_id, base_dir)
+    commit_meta["signature"] = signature_data["signature"]
+    commit_meta["changes_hash"] = signature_data["changes_hash"]
+    
     # Write to ledger
     ledger_path = os.path.join(ledger_dir, f"{commit_id}.json")
     with open(ledger_path, "w") as f:

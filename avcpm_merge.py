@@ -3,6 +3,8 @@ import sys
 import shutil
 import json
 
+from avcpm_agent import verify_commit_signature
+
 DEFAULT_BASE_DIR = ".avcpm"
 
 def get_reviews_dir(base_dir=DEFAULT_BASE_DIR):
@@ -44,7 +46,28 @@ def merge(commit_id, base_dir=DEFAULT_BASE_DIR):
     with open(ledger_path, "r") as f:
         commit_data = json.load(f)
     
-    # 3. Move files from staging to production (current directory)
+    # 3. Verify commit signature before merging
+    signature = commit_data.get("signature")
+    agent_id = commit_data.get("agent_id")
+    timestamp = commit_data.get("timestamp")
+    changes = commit_data.get("changes", [])
+    
+    if not signature:
+        print(f"Error: Commit {commit_id} has no signature. Merge aborted.")
+        sys.exit(1)
+    
+    if not agent_id:
+        print(f"Error: Commit {commit_id} has no agent_id. Merge aborted.")
+        sys.exit(1)
+    
+    is_valid = verify_commit_signature(commit_id, timestamp, changes, agent_id, signature, base_dir)
+    if not is_valid:
+        print(f"Error: Commit {commit_id} has invalid signature. Merge aborted.")
+        sys.exit(1)
+    
+    print(f"Signature verified for commit {commit_id} (agent: {agent_id})")
+    
+    # 4. Move files from staging to production (current directory)
     for change in commit_data["changes"]:
         staging_file = change["staging_path"]
         if os.path.exists(staging_file):
