@@ -5,8 +5,20 @@ import hashlib
 from datetime import datetime
 import shutil
 
-LEDGER_DIR = ".avcpm/ledger"
-STAGING_DIR = ".avcpm/staging" # As per DESIGN.md 3.2
+DEFAULT_BASE_DIR = ".avcpm"
+
+def get_ledger_dir(base_dir=DEFAULT_BASE_DIR):
+    """Get the ledger directory path."""
+    return os.path.join(base_dir, "ledger")
+
+def get_staging_dir(base_dir=DEFAULT_BASE_DIR):
+    """Get the staging directory path."""
+    return os.path.join(base_dir, "staging")
+
+def ensure_directories(base_dir=DEFAULT_BASE_DIR):
+    """Ensure ledger and staging directories exist."""
+    os.makedirs(get_ledger_dir(base_dir), exist_ok=True)
+    os.makedirs(get_staging_dir(base_dir), exist_ok=True)
 
 def calculate_checksum(filepath):
     sha256_hash = hashlib.sha256()
@@ -15,10 +27,11 @@ def calculate_checksum(filepath):
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
 
-def commit(task_id, agent_id, rationale, files_to_commit):
-    # Ensure staging exists
-    if not os.path.exists(STAGING_DIR):
-        os.makedirs(STAGING_DIR)
+def commit(task_id, agent_id, rationale, files_to_commit, base_dir=DEFAULT_BASE_DIR):
+    ensure_directories(base_dir)
+    
+    staging_dir = get_staging_dir(base_dir)
+    ledger_dir = get_ledger_dir(base_dir)
 
     commit_id = datetime.now().strftime("%Y%m%d%H%M%S")
     commit_meta = {
@@ -37,7 +50,7 @@ def commit(task_id, agent_id, rationale, files_to_commit):
         
         checksum = calculate_checksum(filepath)
         # Copy file to staging
-        staging_path = os.path.join(STAGING_DIR, os.path.basename(filepath))
+        staging_path = os.path.join(staging_dir, os.path.basename(filepath))
         shutil.copy2(filepath, staging_path)
         
         commit_meta["changes"].append({
@@ -47,7 +60,7 @@ def commit(task_id, agent_id, rationale, files_to_commit):
         })
 
     # Write to ledger
-    ledger_path = os.path.join(LEDGER_DIR, f"{commit_id}.json")
+    ledger_path = os.path.join(ledger_dir, f"{commit_id}.json")
     with open(ledger_path, "w") as f:
         json.dump(commit_meta, f, indent=4)
     

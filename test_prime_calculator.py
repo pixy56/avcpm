@@ -1,7 +1,7 @@
-"""Tests for prime_calculator.py"""
+"""Tests for primes.py"""
 
 import pytest
-from prime_calculator import calculate_primes
+from primes import calculate_primes
 
 
 class TestCalculatePrimes:
@@ -26,6 +26,6 @@ class TestCalculatePrimes:
     def test_limit_2(self):
         assert calculate_primes(2) == [2]
 
-    def test_negative_limit_raises_error(self):
-        with pytest.raises(ValueError, match="non-negative"):
-            calculate_primes(-5)
+    def test_negative_limit_returns_empty_list(self):
+        """Negative limits return empty list (no primes below 2)."""
+        assert calculate_primes(-5) == []

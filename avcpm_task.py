@@ -4,8 +4,18 @@ import shutil
 import json
 from datetime import datetime
 
-BASE_DIR = ".avcpm/tasks"
+DEFAULT_BASE_DIR = ".avcpm"
 COLUMNS = ["todo", "in-progress", "review", "done"]
+
+def get_tasks_dir(base_dir=DEFAULT_BASE_DIR):
+    """Get the tasks directory path."""
+    return os.path.join(base_dir, "tasks")
+
+def ensure_directories(base_dir=DEFAULT_BASE_DIR):
+    """Ensure task directories exist."""
+    tasks_dir = get_tasks_dir(base_dir)
+    for col in COLUMNS:
+        os.makedirs(os.path.join(tasks_dir, col), exist_ok=True)
 
 def print_help():
     print("AVCPM Task Tooling")
@@ -14,8 +24,11 @@ def print_help():
     print("  python avcpm_task.py move <id> <new_status>")
     print("  python avcpm_task.py list")
 
-def create_task(task_id, description, assignee="unassigned"):
-    path = os.path.join(BASE_DIR, "todo", f"{task_id}.json")
+def create_task(task_id, description, assignee="unassigned", base_dir=DEFAULT_BASE_DIR):
+    tasks_dir = get_tasks_dir(base_dir)
+    ensure_directories(base_dir)
+    
+    path = os.path.join(tasks_dir, "todo", f"{task_id}.json")
     if os.path.exists(path):
         print(f"Error: Task {task_id} already exists.")
         sys.exit(1)
@@ -35,15 +48,17 @@ def create_task(task_id, description, assignee="unassigned"):
         json.dump(task_data, f, indent=4)
     print(f"Task {task_id} created in 'todo'.")
 
-def move_task(task_id, new_status):
+def move_task(task_id, new_status, base_dir=DEFAULT_BASE_DIR):
     if new_status not in COLUMNS:
         print(f"Error: Invalid status. Use {COLUMNS}")
         sys.exit(1)
     
+    tasks_dir = get_tasks_dir(base_dir)
+    
     # Find where the task is currently
     current_path = None
     for col in COLUMNS:
-        p = os.path.join(BASE_DIR, col, f"{task_id}.json")
+        p = os.path.join(tasks_dir, col, f"{task_id}.json")
         if os.path.exists(p):
             current_path = p
             break
@@ -62,17 +77,22 @@ def move_task(task_id, new_status):
     })
     
     # Move file
-    new_path = os.path.join(BASE_DIR, new_status, f"{task_id}.json")
+    new_path = os.path.join(tasks_dir, new_status, f"{task_id}.json")
     shutil.move(current_path, new_path)
     
     with open(new_path, "w") as f:
         json.dump(task_data, f, indent=4)
     print(f"Task {task_id} moved to {new_status}.")
 
-def list_tasks():
+def list_tasks(base_dir=DEFAULT_BASE_DIR):
+    tasks_dir = get_tasks_dir(base_dir)
+    
     for col in COLUMNS:
         print(f"\n--- {col.upper()} ---")
-        col_path = os.path.join(BASE_DIR, col)
+        col_path = os.path.join(tasks_dir, col)
+        if not os.path.exists(col_path):
+            print(" (empty)")
+            continue
         files = [f for f in os.listdir(col_path) if f.endswith(".json")]
         if not files:
             print(" (empty)")

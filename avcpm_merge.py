@@ -3,12 +3,27 @@ import sys
 import shutil
 import json
 
-REVIEWS_DIR = ".avcpm/reviews"
-STAGING_DIR = ".avcpm/staging"
+DEFAULT_BASE_DIR = ".avcpm"
 
-def merge(commit_id):
+def get_reviews_dir(base_dir=DEFAULT_BASE_DIR):
+    """Get the reviews directory path."""
+    return os.path.join(base_dir, "reviews")
+
+def get_staging_dir(base_dir=DEFAULT_BASE_DIR):
+    """Get the staging directory path."""
+    return os.path.join(base_dir, "staging")
+
+def get_ledger_dir(base_dir=DEFAULT_BASE_DIR):
+    """Get the ledger directory path."""
+    return os.path.join(base_dir, "ledger")
+
+def merge(commit_id, base_dir=DEFAULT_BASE_DIR):
+    reviews_dir = get_reviews_dir(base_dir)
+    staging_dir = get_staging_dir(base_dir)
+    ledger_dir = get_ledger_dir(base_dir)
+    
     # 1. Validate Approval
-    review_path = os.path.join(REVIEWS_DIR, f"{commit_id}.review")
+    review_path = os.path.join(reviews_dir, f"{commit_id}.review")
     if not os.path.exists(review_path):
         print(f"Error: No review file found for commit {commit_id} at {review_path}")
         sys.exit(1)
@@ -21,7 +36,7 @@ def merge(commit_id):
         sys.exit(1)
     
     # 2. Identify files in the commit
-    ledger_path = os.path.join(".avcpm/ledger", f"{commit_id}.json")
+    ledger_path = os.path.join(ledger_dir, f"{commit_id}.json")
     if not os.path.exists(ledger_path):
         print(f"Error: Commit {commit_id} not found in ledger.")
         sys.exit(1)
