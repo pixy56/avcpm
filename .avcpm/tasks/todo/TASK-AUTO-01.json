@@ -1,0 +1,12 @@
+{
+  "id": "TASK-AUTO-01",
+  "title": "Implement Automatic Checksum Validation",
+  "description": "Develop a script to automatically generate and verify checksums for all artifacts placed in .avcpm/staging to ensure integrity during transfer.",
+  "status": "todo",
+  "priority": "High",
+  "assignee": "Dev-Automation-Lead",
+  "acceptance_criteria": [
+    "Script creates a checksum manifest for staging files",
+    "Validation script fails if manifest does not match current file state"
+  ]
+}
