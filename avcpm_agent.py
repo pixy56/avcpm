@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Dict, List, Optional, Tuple, Union, Any
 """
 AVCPM Agent Identity System
 
@@ -11,6 +13,8 @@ import hashlib
 import uuid
 import stat
 import getpass
+import base64
+import warnings
 from datetime import datetime
 from pathlib import Path
 
@@ -18,7 +22,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 
 DEFAULT_BASE_DIR = ".avcpm"
@@ -26,26 +30,34 @@ DEFAULT_BASE_DIR = ".avcpm"
 # Encryption constants
 ENCRYPTION_SALT_LENGTH = 16
 ENCRYPTION_IV_LENGTH = 16
+ENCRYPTION_NONCE_LENGTH = 12  # GCM nonce
+ENCRYPTION_TAG_LENGTH = 16   # GCM auth tag
 ENCRYPTION_KEY_LENGTH = 32
-ENCRYPTION_ITERATIONS = 100000
+ENCRYPTION_ITERATIONS = 600000
+
+# Version prefix for encryption format
+_V1_PREFIX = b"v1:"  # Legacy CBC format: raw salt+iv+ciphertext
+_V2_PREFIX = b"v2:"  # New GCM format: v2:base64(salt||nonce||ct||tag)
 
 
-def get_agents_dir(base_dir=DEFAULT_BASE_DIR):
+def get_agents_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the agents directory path."""
     return os.path.join(base_dir, "agents")
 
 
-def get_agent_dir(agent_id, base_dir=DEFAULT_BASE_DIR):
+def get_agent_dir(agent_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get a specific agent's directory path."""
+    from avcpm_security import validate_agent_id
+    validate_agent_id(agent_id)
     return os.path.join(get_agents_dir(base_dir), agent_id)
 
 
-def get_registry_path(base_dir=DEFAULT_BASE_DIR):
+def get_registry_path(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the registry.json file path."""
     return os.path.join(get_agents_dir(base_dir), "registry.json")
 
 
-def ensure_directories(base_dir=DEFAULT_BASE_DIR):
+def ensure_directories(base_dir=DEFAULT_BASE_DIR) -> None:
     """Ensure agents directory exists."""
     os.makedirs(get_agents_dir(base_dir), exist_ok=True)
 
@@ -100,63 +112,63 @@ def _serialize_public_key(public_key):
 
 def _derive_key(passphrase: str, salt: bytes) -> bytes:
     """
-    Derive encryption key from passphrase using PBKDF2.
+    Derive encryption key from passphrase using PBKDF2HMAC-SHA256.
     
     Args:
         passphrase: The passphrase to derive key from
         salt: Random salt bytes
     
     Returns:
-        Derived key bytes
+        Derived key bytes (32 bytes for AES-256)
     """
-    kdf = PBKDF2(
+    kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=ENCRYPTION_KEY_LENGTH,
         salt=salt,
         iterations=ENCRYPTION_ITERATIONS,
-        backend=default_backend()
     )
     return kdf.derive(passphrase.encode('utf-8'))
 
 
 def _encrypt_data(data: bytes, passphrase: str) -> bytes:
     """
-    Encrypt data using AES-256-CBC with PBKDF2 key derivation.
+    Encrypt data using AES-256-GCM with PBKDF2HMAC key derivation.
+    
+    New format (v2): b"v2:" + base64(salt || nonce || ciphertext || tag)
     
     Args:
         data: Data to encrypt
         passphrase: Passphrase for encryption
     
     Returns:
-        Encrypted data (salt + iv + ciphertext)
+        Encrypted data with v2 prefix
     """
-    # Generate random salt and IV
+    # Generate random salt and GCM nonce
     salt = os.urandom(ENCRYPTION_SALT_LENGTH)
-    iv = os.urandom(ENCRYPTION_IV_LENGTH)
+    nonce = os.urandom(ENCRYPTION_NONCE_LENGTH)
     
     # Derive key from passphrase
     key = _derive_key(passphrase, salt)
     
-    # Create cipher and encrypt
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    # Create AES-GCM cipher and encrypt
+    cipher = Cipher(algorithms.AES(key), modes.GCM(nonce), backend=default_backend())
     encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(data) + encryptor.finalize()
     
-    # Pad data to block size (16 bytes for AES)
-    pad_length = 16 - (len(data) % 16)
-    padded_data = data + bytes([pad_length] * pad_length)
+    # GCM provides the authentication tag
+    tag = encryptor.tag
     
-    ciphertext = encryptor.update(padded_data) + encryptor.finalize()
-    
-    # Return salt + iv + ciphertext
-    return salt + iv + ciphertext
+    # Return v2 format: "v2:" + base64(salt || nonce || ciphertext || tag)
+    payload = salt + nonce + ciphertext + tag
+    return _V2_PREFIX + base64.b64encode(payload)
 
 
 def _decrypt_data(encrypted_data: bytes, passphrase: str) -> bytes:
     """
-    Decrypt data using AES-256-CBC with PBKDF2 key derivation.
+    Decrypt data, supporting both v2 (GCM) and v1 (legacy CBC) formats.
     
     Args:
-        encrypted_data: Encrypted data (salt + iv + ciphertext)
+        encrypted_data: Encrypted data (v2 prefixed or legacy v1 raw format)
         passphrase: Passphrase for decryption
     
     Returns:
@@ -165,18 +177,85 @@ def _decrypt_data(encrypted_data: bytes, passphrase: str) -> bytes:
     Raises:
         ValueError: If passphrase is incorrect or data is corrupted
     """
+    # Check for v2 format
+    if encrypted_data.startswith(_V2_PREFIX):
+        return _decrypt_data_v2(encrypted_data, passphrase)
+    
+    # Legacy v1 format (raw salt + iv + ciphertext)
+    warnings.warn(
+        "Decrypting legacy v1 (AES-CBC) format. This format is deprecated "
+        "and will be removed in a future release. Re-encrypt keys to upgrade.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _decrypt_data_v1(encrypted_data, passphrase)
+
+
+def _decrypt_data_v2(encrypted_data: bytes, passphrase: str) -> bytes:
+    """
+    Decrypt v2 format: "v2:" + base64(salt || nonce || ciphertext || tag)
+    
+    Args:
+        encrypted_data: v2-prefixed encrypted data
+        passphrase: Passphrase for decryption
+    
+    Returns:
+        Decrypted data
+    """
+    # Strip prefix and decode base64
+    payload_b64 = encrypted_data[len(_V2_PREFIX):]
+    try:
+        payload = base64.b64decode(payload_b64)
+    except Exception:
+        raise ValueError("Invalid encrypted data: corrupted base64 payload")
+    
+    if len(payload) < ENCRYPTION_SALT_LENGTH + ENCRYPTION_NONCE_LENGTH + ENCRYPTION_TAG_LENGTH:
+        raise ValueError("Invalid encrypted data format: payload too short")
+    
+    # Extract components: salt || nonce || ciphertext || tag
+    salt = payload[:ENCRYPTION_SALT_LENGTH]
+    nonce = payload[ENCRYPTION_SALT_LENGTH:ENCRYPTION_SALT_LENGTH + ENCRYPTION_NONCE_LENGTH]
+    tag = payload[-ENCRYPTION_TAG_LENGTH:]
+    ciphertext = payload[ENCRYPTION_SALT_LENGTH + ENCRYPTION_NONCE_LENGTH:-ENCRYPTION_TAG_LENGTH]
+    
+    # Derive key
+    key = _derive_key(passphrase, salt)
+    
+    # Decrypt with AES-GCM
+    cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag), backend=default_backend())
+    decryptor = cipher.decryptor()
+    
+    try:
+        plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+    except Exception:
+        raise ValueError("Failed to decrypt: invalid passphrase or corrupted data")
+    
+    return plaintext
+
+
+def _decrypt_data_v1(encrypted_data: bytes, passphrase: str) -> bytes:
+    """
+    Decrypt legacy v1 format (AES-256-CBC with PKCS7-style padding).
+    
+    Backward compatibility for keys encrypted with the old CBC format.
+    Will be removed in a future release.
+    
+    Args:
+        encrypted_data: Raw encrypted data (salt + iv + ciphertext)
+        passphrase: Passphrase for decryption
+    
+    Returns:
+        Decrypted data
+    """
     if len(encrypted_data) < ENCRYPTION_SALT_LENGTH + ENCRYPTION_IV_LENGTH:
         raise ValueError("Invalid encrypted data format")
     
-    # Extract salt, iv, and ciphertext
     salt = encrypted_data[:ENCRYPTION_SALT_LENGTH]
     iv = encrypted_data[ENCRYPTION_SALT_LENGTH:ENCRYPTION_SALT_LENGTH + ENCRYPTION_IV_LENGTH]
     ciphertext = encrypted_data[ENCRYPTION_SALT_LENGTH + ENCRYPTION_IV_LENGTH:]
     
-    # Derive key from passphrase
     key = _derive_key(passphrase, salt)
     
-    # Create cipher and decrypt
     cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
     decryptor = cipher.decryptor()
     
@@ -185,19 +264,17 @@ def _decrypt_data(encrypted_data: bytes, passphrase: str) -> bytes:
     except Exception:
         raise ValueError("Failed to decrypt: invalid passphrase or corrupted data")
     
-    # Remove padding
+    # Remove PKCS7 padding
     pad_length = padded_data[-1]
     if pad_length > 16 or pad_length == 0:
         raise ValueError("Failed to decrypt: invalid passphrase or corrupted data")
-    
-    # Verify padding
     if padded_data[-pad_length:] != bytes([pad_length] * pad_length):
         raise ValueError("Failed to decrypt: invalid passphrase or corrupted data")
     
     return padded_data[:-pad_length]
 
 
-def encrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR):
+def encrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR) -> bytes:
     """
     Encrypt an agent's private key with a passphrase.
     
@@ -249,7 +326,7 @@ def encrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR):
     return {"success": True, "message": f"Private key for agent {agent_id} encrypted successfully"}
 
 
-def decrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR):
+def decrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR) -> bytes:
     """
     Decrypt an agent's private key using passphrase.
     
@@ -283,7 +360,7 @@ def decrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR):
     return serialization.load_pem_private_key(private_key_data, password=None)
 
 
-def is_key_encrypted(agent_id, base_dir=DEFAULT_BASE_DIR):
+def is_key_encrypted(agent_id, base_dir=DEFAULT_BASE_DIR) -> bool:
     """
     Check if an agent's private key is encrypted.
     
@@ -336,19 +413,39 @@ def _load_public_key(agent_id, base_dir=DEFAULT_BASE_DIR):
         return serialization.load_pem_public_key(f.read())
 
 
-def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None):
+def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None, encrypt=True) -> Dict:
     """
     Create a new agent with RSA key pair.
+    
+    Private keys are encrypted by default. Use encrypt=False (--no-encrypt)
+    only if you understand the security implications.
     
     Args:
         name: Agent name
         email: Agent email
         base_dir: Base directory for AVCPM (default: .avcpm)
-        passphrase: Optional passphrase to encrypt private key
+        passphrase: Passphrase to encrypt private key (required when encrypt=True)
+        encrypt: Whether to encrypt the private key (default: True).
+                 Set to False with --no-encrypt to store unencrypted (NOT recommended).
     
     Returns:
         dict: Agent metadata including agent_id, name, email, created_at
     """
+    if not encrypt:
+        warnings.warn(
+            "Private key will be stored unencrypted. This is NOT recommended "
+            "for production use. Anyone with filesystem access can read the key.",
+            UserWarning,
+            stacklevel=2,
+        )
+    
+    # If encryption is enabled (default) and no passphrase provided, that's an error
+    if encrypt and not passphrase:
+        raise ValueError(
+            "Private key encryption is mandatory by default. "
+            "Provide a passphrase or use --no-encrypt to disable (NOT recommended)."
+        )
+    
     ensure_directories(base_dir)
     
     agent_id = _generate_agent_id()
@@ -373,8 +470,8 @@ def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None):
     with open(public_path, "wb") as f:
         f.write(public_pem)
     
-    # Handle private key (encrypted or not)
-    if passphrase:
+    # Handle private key (encrypted by default)
+    if encrypt and passphrase:
         # Encrypt and store private key
         encrypted_data = _encrypt_data(private_pem, passphrase)
         private_path = os.path.join(agent_dir, "private.pem.enc")
@@ -383,7 +480,7 @@ def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None):
         os.chmod(private_path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
         private_key_path = private_path
     else:
-        # Store unencrypted private key
+        # Store unencrypted private key (--no-encrypt)
         private_path = os.path.join(agent_dir, "private.pem")
         with open(private_path, "wb") as f:
             f.write(private_pem)
@@ -407,14 +504,14 @@ def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None):
         "email": email,
         "created_at": agent_data["created_at"]
     }
-    if passphrase:
+    if encrypt:
         registry["agents"][agent_id]["encrypted"] = True
     _save_registry(registry, base_dir)
     
     return agent_data
 
 
-def list_agents(base_dir=DEFAULT_BASE_DIR):
+def list_agents(base_dir=DEFAULT_BASE_DIR) -> List[Dict]:
     """
     List all registered agents.
     
@@ -428,7 +525,7 @@ def list_agents(base_dir=DEFAULT_BASE_DIR):
     return registry.get("agents", {})
 
 
-def get_agent(agent_id, base_dir=DEFAULT_BASE_DIR):
+def get_agent(agent_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get agent details by ID.
     
@@ -446,7 +543,7 @@ def get_agent(agent_id, base_dir=DEFAULT_BASE_DIR):
     return None
 
 
-def get_public_key(agent_id, base_dir=DEFAULT_BASE_DIR):
+def get_public_key(agent_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get the public key for an agent.
     
@@ -464,7 +561,7 @@ def get_public_key(agent_id, base_dir=DEFAULT_BASE_DIR):
     return None
 
 
-def sign_data(agent_id, data, base_dir=DEFAULT_BASE_DIR, passphrase=None):
+def sign_data(agent_id, data, base_dir=DEFAULT_BASE_DIR, passphrase=None) -> Dict:
     """
     Sign data with an agent's private key.
     
@@ -495,7 +592,7 @@ def sign_data(agent_id, data, base_dir=DEFAULT_BASE_DIR, passphrase=None):
     return signature
 
 
-def verify_signature(agent_id, data, signature, base_dir=DEFAULT_BASE_DIR):
+def verify_signature(agent_id, data, signature, base_dir=DEFAULT_BASE_DIR) -> bool:
     """
     Verify data signature with an agent's public key.
     
@@ -529,7 +626,7 @@ def verify_signature(agent_id, data, signature, base_dir=DEFAULT_BASE_DIR):
         return False
 
 
-def calculate_changes_hash(changes):
+def calculate_changes_hash(changes) -> str:
     """
     Calculate a hash of the changes for commit signing.
     
@@ -547,7 +644,7 @@ def calculate_changes_hash(changes):
     return hasher.hexdigest()
 
 
-def sign_commit(commit_id, timestamp, changes, agent_id, base_dir=DEFAULT_BASE_DIR, passphrase=None):
+def sign_commit(commit_id, timestamp, changes, agent_id, base_dir=DEFAULT_BASE_DIR, passphrase=None) -> Dict:
     """
     Sign commit metadata (commit_id + timestamp + changes hash).
     
@@ -579,7 +676,7 @@ def sign_commit(commit_id, timestamp, changes, agent_id, base_dir=DEFAULT_BASE_D
     }
 
 
-def verify_commit_signature(commit_id, timestamp, changes, agent_id, signature_hex, base_dir=DEFAULT_BASE_DIR):
+def verify_commit_signature(commit_id, timestamp, changes, agent_id, signature_hex, base_dir=DEFAULT_BASE_DIR) -> bool:
     """
     Verify a commit signature.
     
@@ -605,16 +702,20 @@ def verify_commit_signature(commit_id, timestamp, changes, agent_id, signature_h
     return verify_signature(agent_id, payload, signature, base_dir)
 
 
-def print_help():
+def print_help() -> None:
     """Print CLI help message."""
     print("AVCPM Agent Identity System")
     print("Usage:")
-    print("  python avcpm_agent.py create <name> <email> [--encrypt]")
+    print("  python avcpm_agent.py create <name> <email> [--no-encrypt]")
     print("  python avcpm_agent.py list")
     print("  python avcpm_agent.py show <agent_id>")
     print("  python avcpm_agent.py encrypt <agent_id>")
     print("  python avcpm_agent.py sign <agent_id> <file>")
     print("  python avcpm_agent.py verify <agent_id> <file> <signature_file>")
+    print()
+    print("Private keys are encrypted by default. Passphrase is prompted")
+    print("or read from AVCPM_KEY_PASSPHRASE environment variable.")
+    print("Use --no-encrypt to store keys unencrypted (NOT recommended).")
 
 
 if __name__ == "__main__":
@@ -627,34 +728,44 @@ if __name__ == "__main__":
     if cmd == "create":
         if len(sys.argv) < 4:
             print("Error: create requires name and email")
-            print("Usage: python avcpm_agent.py create <name> <email> [--encrypt]")
+            print("Usage: python avcpm_agent.py create <name> <email> [--no-encrypt]")
             sys.exit(1)
         
         name = sys.argv[2]
         email = sys.argv[3]
-        encrypt = "--encrypt" in sys.argv
+        no_encrypt = "--no-encrypt" in sys.argv
+        encrypt = not no_encrypt
         
         passphrase = None
         if encrypt:
-            # Prompt for passphrase securely
-            passphrase = getpass.getpass("Enter passphrase for private key encryption: ")
-            confirm = getpass.getpass("Confirm passphrase: ")
-            if passphrase != confirm:
-                print("Error: Passphrases do not match")
-                sys.exit(1)
-            if len(passphrase) < 8:
-                print("Error: Passphrase must be at least 8 characters")
-                sys.exit(1)
+            # Check for passphrase in environment variable first
+            passphrase = os.environ.get("AVCPM_KEY_PASSPHRASE")
+            if passphrase:
+                if len(passphrase) < 8:
+                    print("Error: AVCPM_KEY_PASSPHRASE must be at least 8 characters")
+                    sys.exit(1)
+            else:
+                # Prompt for passphrase securely
+                passphrase = getpass.getpass("Enter passphrase for private key encryption: ")
+                confirm = getpass.getpass("Confirm passphrase: ")
+                if passphrase != confirm:
+                    print("Error: Passphrases do not match")
+                    sys.exit(1)
+                if len(passphrase) < 8:
+                    print("Error: Passphrase must be at least 8 characters")
+                    sys.exit(1)
         
         try:
-            agent = create_agent(name, email, passphrase=passphrase)
+            agent = create_agent(name, email, passphrase=passphrase, encrypt=encrypt)
             print(f"Agent created successfully!")
             print(f"  ID: {agent['agent_id']}")
             print(f"  Name: {agent['name']}")
             print(f"  Email: {agent['email']}")
             print(f"  Created: {agent['created_at']}")
             if encrypt:
-                print(f"  Encryption: Enabled")
+                print(f"  Encryption: Enabled (AES-256-GCM)")
+            else:
+                print(f"  Encryption: DISABLED (private key stored unencrypted)")
         except Exception as e:
             print(f"Error creating agent: {e}")
             sys.exit(1)

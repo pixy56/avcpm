@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "avcpm"
+version = "3.0.0"
+description = "Agent-Verified Cryptographic Project Manager"
+authors = [{name = "AVCPM Team"}]
+license = {text = "MIT"}
+requires-python = ">=3.10,<3.13"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "cryptography==42.0.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.0.0",
+    "pytest-cov==4.1.0",
+    "mypy==1.8.0",
+    "bandit==1.7.6",
+    "ruff==0.2.0",
+    "hypothesis==6.100.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+addopts = "-v --tb=short"
+markers = [
+    "slow: marks tests as slow",
+    "integration: marks integration tests",
+]
+
+[tool.mypy]
+strict = false
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.bandit]
+exclude_dirs = ["tests/", "__pycache__/"]
+
+[tool.coverage.run]
+source = ["avcpm_*"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 60

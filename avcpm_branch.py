@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Dict, List, Optional, Tuple, Union, Any
 """
 AVCPM Branch Management System
 
@@ -21,32 +23,32 @@ BRANCH_STATUS_MERGED = "merged"
 BRANCH_STATUS_DELETED = "deleted"
 
 
-def get_branches_dir(base_dir=DEFAULT_BASE_DIR):
+def get_branches_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the branches directory path."""
     return os.path.join(base_dir, "branches")
 
 
-def get_branch_dir(branch_name, base_dir=DEFAULT_BASE_DIR):
+def get_branch_dir(branch_name, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get a specific branch's directory path."""
     return os.path.join(get_branches_dir(base_dir), branch_name)
 
 
-def get_branch_metadata_path(branch_name, base_dir=DEFAULT_BASE_DIR):
+def get_branch_metadata_path(branch_name, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the path to a branch's metadata file."""
     return os.path.join(get_branch_dir(branch_name, base_dir), "branch.json")
 
 
-def get_branch_staging_dir(branch_name, base_dir=DEFAULT_BASE_DIR):
+def get_branch_staging_dir(branch_name, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the staging directory for a specific branch."""
     return os.path.join(get_branch_dir(branch_name, base_dir), "staging")
 
 
-def get_branch_ledger_dir(branch_name, base_dir=DEFAULT_BASE_DIR):
+def get_branch_ledger_dir(branch_name, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the ledger directory for a specific branch."""
     return os.path.join(get_branch_dir(branch_name, base_dir), "ledger")
 
 
-def get_config_path(base_dir=DEFAULT_BASE_DIR):
+def get_config_path(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the config.json file path."""
     return os.path.join(base_dir, "config.json")
 
@@ -126,7 +128,7 @@ def _is_ancestor(branch_name, potential_ancestor, base_dir=DEFAULT_BASE_DIR):
     return False
 
 
-def create_branch(name, parent_branch="main", task_id=None, agent_id=None, base_dir=DEFAULT_BASE_DIR):
+def create_branch(name, parent_branch="main", task_id=None, agent_id=None, base_dir=DEFAULT_BASE_DIR) -> Dict:
     """
     Create a new branch.
     
@@ -203,7 +205,7 @@ def create_branch(name, parent_branch="main", task_id=None, agent_id=None, base_
     return branch_metadata
 
 
-def list_branches(base_dir=DEFAULT_BASE_DIR):
+def list_branches(base_dir=DEFAULT_BASE_DIR) -> List[Dict]:
     """
     List all branches with their metadata.
     
@@ -231,7 +233,7 @@ def list_branches(base_dir=DEFAULT_BASE_DIR):
     return branches
 
 
-def get_branch(name, base_dir=DEFAULT_BASE_DIR):
+def get_branch(name, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get branch details/metadata.
     
@@ -250,7 +252,7 @@ def get_branch(name, base_dir=DEFAULT_BASE_DIR):
         return json.load(f)
 
 
-def switch_branch(name, base_dir=DEFAULT_BASE_DIR):
+def switch_branch(name, base_dir=DEFAULT_BASE_DIR) -> Any:
     """
     Set the current/active branch.
     
@@ -280,7 +282,7 @@ def switch_branch(name, base_dir=DEFAULT_BASE_DIR):
     return get_branch(name, base_dir)
 
 
-def get_current_branch(base_dir=DEFAULT_BASE_DIR):
+def get_current_branch(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get the name of the currently active branch.
     
@@ -296,7 +298,7 @@ def get_current_branch(base_dir=DEFAULT_BASE_DIR):
     return config.get("current_branch", "main")
 
 
-def delete_branch(name, force=False, base_dir=DEFAULT_BASE_DIR):
+def delete_branch(name, force=False, base_dir=DEFAULT_BASE_DIR) -> None:
     """
     Delete a branch.
     
@@ -356,7 +358,7 @@ def delete_branch(name, force=False, base_dir=DEFAULT_BASE_DIR):
     return True
 
 
-def rename_branch(old_name, new_name, base_dir=DEFAULT_BASE_DIR):
+def rename_branch(old_name, new_name, base_dir=DEFAULT_BASE_DIR) -> Any:
     """
     Rename a branch.
     
@@ -420,7 +422,7 @@ def rename_branch(old_name, new_name, base_dir=DEFAULT_BASE_DIR):
     return metadata
 
 
-def get_staging_dir_for_branch(branch_name=None, base_dir=DEFAULT_BASE_DIR):
+def get_staging_dir_for_branch(branch_name=None, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get the staging directory for a specific branch or the current branch.
     
@@ -438,7 +440,7 @@ def get_staging_dir_for_branch(branch_name=None, base_dir=DEFAULT_BASE_DIR):
     return get_branch_staging_dir(branch_name, base_dir)
 
 
-def get_ledger_dir_for_branch(branch_name=None, base_dir=DEFAULT_BASE_DIR):
+def get_ledger_dir_for_branch(branch_name=None, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get the ledger directory for a specific branch or the current branch.
     
@@ -469,7 +471,7 @@ def _print_branch_list(branches, current_branch):
         print(f"{marker} {branch['name']:<20} {status:<10} {parent:<15} {created}")
 
 
-def main():
+def main() -> Any:
     """CLI interface for branch management."""
     if len(sys.argv) < 2:
         print("Usage: python avcpm_branch.py <command> [args...]")

@@ -114,7 +114,7 @@ def get_base_dir(args) -> str:
 # COMMAND ROUTERS
 # ============================================================================
 
-def task_command(args):
+def task_command(args) -> Any:
     """Route task commands."""
     subcommand = args.subcommand
     base_dir = get_base_dir(args)
@@ -125,14 +125,22 @@ def task_command(args):
             sys.exit(1)
         assignee = args.assignee if hasattr(args, 'assignee') and args.assignee else "unassigned"
         depends_on = args.depends_on if hasattr(args, 'depends_on') and args.depends_on else None
-        create_task(args.task_id, args.description, assignee, depends_on, base_dir)
+        try:
+            create_task(args.task_id, args.description, assignee, depends_on, base_dir)
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
     
     elif subcommand == "move":
         if not args.task_id or not args.status:
             print("Error: task move requires task_id and status")
             sys.exit(1)
         force = args.force if hasattr(args, 'force') else False
-        move_task(args.task_id, args.status, force, base_dir)
+        try:
+            move_task(args.task_id, args.status, force, base_dir)
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
     
     elif subcommand == "list":
         list_tasks(base_dir)
@@ -146,12 +154,20 @@ def task_command(args):
             if not args.task_id or not args.dep_task_id:
                 print("Error: deps add requires task_id and dep_task_id")
                 sys.exit(1)
-            deps_add(args.task_id, args.dep_task_id, base_dir)
+            try:
+                deps_add(args.task_id, args.dep_task_id, base_dir)
+            except ValueError as e:
+                print(f"Error: {e}")
+                sys.exit(1)
         elif deps_subcommand == "remove":
             if not args.task_id or not args.dep_task_id:
                 print("Error: deps remove requires task_id and dep_task_id")
                 sys.exit(1)
-            deps_remove(args.task_id, args.dep_task_id, base_dir)
+            try:
+                deps_remove(args.task_id, args.dep_task_id, base_dir)
+            except ValueError as e:
+                print(f"Error: {e}")
+                sys.exit(1)
         elif deps_subcommand == "show":
             if not args.task_id:
                 print("Error: deps show requires task_id")
@@ -171,7 +187,7 @@ def task_command(args):
         sys.exit(1)
 
 
-def commit_command(args):
+def commit_command(args) -> Any:
     """Route commit commands."""
     base_dir = get_base_dir(args)
     
@@ -184,10 +200,14 @@ def commit_command(args):
         sys.exit(1)
     
     skip_validation = args.skip_validation if hasattr(args, 'skip_validation') else False
-    commit(args.task_id, args.agent_id, args.rationale, args.files, None, base_dir, skip_validation)
+    try:
+        commit(args.task_id, args.agent_id, args.rationale, args.files, None, base_dir, skip_validation)
+    except (ValueError, PermissionError) as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
 
-def merge_command(args):
+def merge_command(args) -> Any:
     """Route merge commands."""
     base_dir = get_base_dir(args)
     
@@ -196,10 +216,14 @@ def merge_command(args):
         sys.exit(1)
     
     auto_resolve = args.auto_resolve if hasattr(args, 'auto_resolve') else False
-    merge(args.commit_id, args.source_branch, args.target_branch, base_dir, auto_resolve, args.agent_id)
+    try:
+        merge(args.commit_id, args.source_branch, args.target_branch, base_dir, auto_resolve, args.agent_id)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
 
-def branch_command(args):
+def branch_command(args) -> Any:
     """Route branch commands."""
     subcommand = args.subcommand
     base_dir = get_base_dir(args)
@@ -273,7 +297,7 @@ def branch_command(args):
         sys.exit(1)
 
 
-def diff_command(args):
+def diff_command(args) -> Any:
     """Route diff commands."""
     subcommand = args.subcommand
     base_dir = get_base_dir(args)
@@ -359,7 +383,7 @@ def diff_command(args):
         sys.exit(1)
 
 
-def conflict_command(args):
+def conflict_command(args) -> Any:
     """Route conflict commands."""
     subcommand = args.subcommand
     base_dir = get_base_dir(args)
@@ -436,7 +460,7 @@ def conflict_command(args):
         sys.exit(1)
 
 
-def rollback_command(args):
+def rollback_command(args) -> Any:
     """Route rollback commands."""
     base_dir = get_base_dir(args)
     
@@ -552,7 +576,7 @@ def rollback_command(args):
         sys.exit(1)
 
 
-def wip_command(args):
+def wip_command(args) -> Any:
     """Route wip commands."""
     base_dir = get_base_dir(args)
     agent_id = args.agent if hasattr(args, 'agent') else os.environ.get("AVCPM_AGENT_ID", "unknown")
@@ -625,20 +649,53 @@ def wip_command(args):
         sys.exit(1)
 
 
-def agent_command(args):
+def agent_command(args) -> Any:
     """Route agent commands."""
+    import getpass as _getpass
+    import warnings as _warnings
+    
     base_dir = get_base_dir(args)
     
     if args.subcommand == "create":
         if not args.name or not args.email:
             print("Error: agent create requires name and email")
             sys.exit(1)
+        
+        encrypt = not getattr(args, 'no_encrypt', False)
+        passphrase = None
+        
+        if encrypt:
+            # Check --passphrase arg, then env var, then prompt
+            passphrase = getattr(args, 'passphrase', None)
+            if not passphrase:
+                passphrase = os.environ.get("AVCPM_KEY_PASSPHRASE")
+            if not passphrase:
+                passphrase = _getpass.getpass("Enter passphrase for private key encryption: ")
+                confirm = _getpass.getpass("Confirm passphrase: ")
+                if passphrase != confirm:
+                    print("Error: Passphrases do not match")
+                    sys.exit(1)
+            if len(passphrase) < 8:
+                print("Error: Passphrase must be at least 8 characters")
+                sys.exit(1)
+        else:
+            _warnings.warn(
+                "Private key will be stored unencrypted. This is NOT recommended "
+                "for production use. Anyone with filesystem access can read the key.",
+                UserWarning,
+                stacklevel=2,
+            )
+        
         try:
-            agent = create_agent(args.name, args.email, base_dir)
+            agent = create_agent(args.name, args.email, base_dir, passphrase=passphrase, encrypt=encrypt)
             print(f"Agent created successfully!")
             print(f"  ID: {agent['agent_id']}")
             print(f"  Name: {agent['name']}")
             print(f"  Email: {agent['email']}")
+            if encrypt:
+                print(f"  Encryption: Enabled (AES-256-GCM)")
+            else:
+                print(f"  Encryption: DISABLED (private key stored unencrypted)")
         except Exception as e:
             print(f"Error creating agent: {e}")
             sys.exit(1)
@@ -675,7 +732,7 @@ def agent_command(args):
         sys.exit(1)
 
 
-def validate_command(args):
+def validate_command(args) -> bool:
     """Route validate commands."""
     base_dir = get_base_dir(args)
     staging_dir = os.path.join(base_dir, "staging")
@@ -701,28 +758,22 @@ def validate_command(args):
         sys.exit(1)
 
 
-def status_command(args):
-    """Route status command to existing avcpm_status module."""
-    # Convert our args to avcpm_status expected format
-    sys.argv = ['avcpm_status']
-    if args.json:
-        sys.argv.append('--json')
-    if args.tasks:
-        sys.argv.append('--tasks')
-    if args.ledger:
-        sys.argv.append('--ledger')
-    if args.staging:
-        sys.argv.append('--staging')
-    if args.health:
-        sys.argv.append('--health')
-    status_main()
+def status_command(args) -> Any:
+    """Route status command to avcpm_status module with direct parameter passing."""
+    base_dir = get_base_dir(args)
+    try:
+        status_main(base_dir=base_dir, json_output=args.json, tasks_only=args.tasks,
+                    ledger_only=args.ledger, staging_only=args.staging, health_only=args.health)
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
 
 # ============================================================================
 # MAIN PARSER SETUP
 # ============================================================================
 
-def create_parser():
+def create_parser() -> Dict:
     """Create the main argument parser with all subcommands."""
     parser = argparse.ArgumentParser(
         prog="avcpm",
@@ -1043,7 +1094,8 @@ Examples:
     agent_create = agent_subparsers.add_parser("create", help="Create agent")
     agent_create.add_argument("name", help="Agent name")
     agent_create.add_argument("email", help="Agent email")
-    agent_create.add_argument("--encrypt", action="store_true", help="Encrypt private key with passphrase")
+    agent_create.add_argument("--no-encrypt", action="store_true", help="Store private key unencrypted (NOT recommended)")
+    agent_create.add_argument("--passphrase", help="Encryption passphrase (or set AVCPM_KEY_PASSPHRASE env var)")
     
     # agent list
     agent_subparsers.add_parser("list", help="List agents")
@@ -1055,7 +1107,7 @@ Examples:
     return parser
 
 
-def main():
+def main() -> Any:
     """Main entry point for the CLI."""
     parser = create_parser()
     args = parser.parse_args()

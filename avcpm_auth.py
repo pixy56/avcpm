@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Dict, List, Optional, Tuple, Union, Any
 """
 AVCPM Agent Authentication System
 
@@ -17,32 +19,34 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.exceptions import InvalidSignature
 
+from avcpm_audit import audit_log, EVENT_AUTH_SUCCESS, EVENT_AUTH_FAILURE
+
 DEFAULT_BASE_DIR = ".avcpm"
 SESSION_DURATION_MINUTES = 60  # Sessions expire after 60 minutes
 
 
-def get_sessions_dir(base_dir=DEFAULT_BASE_DIR):
+def get_sessions_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the agent sessions directory path."""
     return os.path.join(base_dir, "agent_sessions")
 
 
-def get_challenges_dir(base_dir=DEFAULT_BASE_DIR):
+def get_challenges_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the challenges directory path."""
     return os.path.join(base_dir, "agent_challenges")
 
 
-def ensure_auth_directories(base_dir=DEFAULT_BASE_DIR):
+def ensure_auth_directories(base_dir=DEFAULT_BASE_DIR) -> None:
     """Ensure authentication directories exist."""
     os.makedirs(get_sessions_dir(base_dir), exist_ok=True)
     os.makedirs(get_challenges_dir(base_dir), exist_ok=True)
 
 
-def generate_challenge():
+def generate_challenge() -> str:
     """Generate a cryptographically secure random challenge."""
     return secrets.token_hex(32)  # 64 hex characters = 256 bits
 
 
-def create_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
+def create_challenge(agent_id, base_dir=DEFAULT_BASE_DIR) -> Dict:
     """
     Create a new challenge for an agent to sign.
     
@@ -53,6 +57,8 @@ def create_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
     Returns:
         str: The challenge string
     """
+    from avcpm_security import validate_agent_id
+    validate_agent_id(agent_id)
     ensure_auth_directories(base_dir)
     
     challenge = generate_challenge()
@@ -72,7 +78,7 @@ def create_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
     return challenge
 
 
-def get_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
+def get_challenge(agent_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get the current challenge for an agent.
     
@@ -83,6 +89,8 @@ def get_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
     Returns:
         str: The challenge or None if not found/expired
     """
+    from avcpm_security import validate_agent_id
+    validate_agent_id(agent_id)
     challenges_dir = get_challenges_dir(base_dir)
     challenge_file = os.path.join(challenges_dir, f"{agent_id}.json")
     
@@ -102,15 +110,17 @@ def get_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
     return challenge_data["challenge"]
 
 
-def clear_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
+def clear_challenge(agent_id, base_dir=DEFAULT_BASE_DIR) -> None:
     """Clear the challenge for an agent (used after successful auth)."""
+    from avcpm_security import validate_agent_id
+    validate_agent_id(agent_id)
     challenges_dir = get_challenges_dir(base_dir)
     challenge_file = os.path.join(challenges_dir, f"{agent_id}.json")
     if os.path.exists(challenge_file):
         os.remove(challenge_file)
 
 
-def sign_challenge_response(challenge, agent_id, base_dir=DEFAULT_BASE_DIR):
+def sign_challenge_response(challenge, agent_id, base_dir=DEFAULT_BASE_DIR) -> Dict:
     """
     Sign a challenge response using the agent's private key.
     
@@ -130,7 +140,7 @@ def sign_challenge_response(challenge, agent_id, base_dir=DEFAULT_BASE_DIR):
     return signature.hex()
 
 
-def verify_challenge_response(challenge, agent_id, signature_hex, base_dir=DEFAULT_BASE_DIR):
+def verify_challenge_response(challenge, agent_id, signature_hex, base_dir=DEFAULT_BASE_DIR) -> bool:
     """
     Verify a challenge response signature.
     
@@ -155,7 +165,7 @@ def verify_challenge_response(challenge, agent_id, signature_hex, base_dir=DEFAU
     return verify_signature(agent_id, payload, signature, base_dir)
 
 
-def create_session(agent_id, base_dir=DEFAULT_BASE_DIR):
+def create_session(agent_id, base_dir=DEFAULT_BASE_DIR) -> Dict:
     """
     Create an authenticated session for an agent.
     
@@ -166,6 +176,8 @@ def create_session(agent_id, base_dir=DEFAULT_BASE_DIR):
     Returns:
         dict: Session data including session token
     """
+    from avcpm_security import validate_agent_id
+    validate_agent_id(agent_id)
     ensure_auth_directories(base_dir)
     
     # Generate session token
@@ -188,7 +200,7 @@ def create_session(agent_id, base_dir=DEFAULT_BASE_DIR):
     return session_data
 
 
-def get_session(agent_id, base_dir=DEFAULT_BASE_DIR):
+def get_session(agent_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get the current session for an agent.
     
@@ -199,6 +211,8 @@ def get_session(agent_id, base_dir=DEFAULT_BASE_DIR):
     Returns:
         dict: Session data or None if not found/expired
     """
+    from avcpm_security import validate_agent_id
+    validate_agent_id(agent_id)
     sessions_dir = get_sessions_dir(base_dir)
     session_file = os.path.join(sessions_dir, f"{agent_id}.json")
     
@@ -218,7 +232,7 @@ def get_session(agent_id, base_dir=DEFAULT_BASE_DIR):
     return session_data
 
 
-def validate_session(agent_id, session_token, base_dir=DEFAULT_BASE_DIR):
+def validate_session(agent_id, session_token, base_dir=DEFAULT_BASE_DIR) -> bool:
     """
     Validate a session token for an agent.
     
@@ -230,11 +244,13 @@ def validate_session(agent_id, session_token, base_dir=DEFAULT_BASE_DIR):
     Returns:
         bool: True if session is valid, False otherwise
     """
+    from avcpm_security import validate_agent_id
+    validate_agent_id(agent_id)
     session = get_session(agent_id, base_dir)
     if session is None:
         return False
     
-    if session["session_token"] != session_token:
+    if not secrets.compare_digest(session["session_token"], session_token):
         return False
     
     # Update last used time
@@ -247,8 +263,10 @@ def validate_session(agent_id, session_token, base_dir=DEFAULT_BASE_DIR):
     return True
 
 
-def delete_session(agent_id, base_dir=DEFAULT_BASE_DIR):
+def delete_session(agent_id, base_dir=DEFAULT_BASE_DIR) -> None:
     """Delete an agent's session (logout)."""
+    from avcpm_security import validate_agent_id
+    validate_agent_id(agent_id)
     sessions_dir = get_sessions_dir(base_dir)
     session_file = os.path.join(sessions_dir, f"{agent_id}.json")
     if os.path.exists(session_file):
@@ -257,7 +275,7 @@ def delete_session(agent_id, base_dir=DEFAULT_BASE_DIR):
     return False
 
 
-def authenticate_agent(agent_id, proof, base_dir=DEFAULT_BASE_DIR):
+def authenticate_agent(agent_id, proof, base_dir=DEFAULT_BASE_DIR) -> Any:
     """
     Authenticate an agent using challenge-response.
     
@@ -271,20 +289,25 @@ def authenticate_agent(agent_id, proof, base_dir=DEFAULT_BASE_DIR):
             - On success: (True, session_data)
             - On failure: (False, error_message)
     """
+    from avcpm_security import validate_agent_id
+    validate_agent_id(agent_id)
     from avcpm_agent import get_agent
     
     # Check if agent exists
     agent = get_agent(agent_id, base_dir)
     if agent is None:
+        audit_log(EVENT_AUTH_FAILURE, agent_id, {"reason": "agent_not_found"})
         return False, f"Agent {agent_id} not found"
     
     # Get the current challenge
     challenge = get_challenge(agent_id, base_dir)
     if challenge is None:
+        audit_log(EVENT_AUTH_FAILURE, agent_id, {"reason": "no_active_challenge"})
         return False, "No active challenge found. Request a challenge first."
     
     # Verify the challenge response
     if not verify_challenge_response(challenge, agent_id, proof, base_dir):
+        audit_log(EVENT_AUTH_FAILURE, agent_id, {"reason": "invalid_signature"})
         return False, "Invalid signature. Authentication failed."
     
     # Clear the used challenge
@@ -293,10 +316,11 @@ def authenticate_agent(agent_id, proof, base_dir=DEFAULT_BASE_DIR):
     # Create session
     session = create_session(agent_id, base_dir)
     
+    audit_log(EVENT_AUTH_SUCCESS, agent_id, {"session_expires_at": session.get("expires_at")})
     return True, session
 
 
-def require_auth(agent_id, base_dir=DEFAULT_BASE_DIR):
+def require_auth(agent_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """
     Decorator helper to require authentication for an operation.
     Checks if the agent has a valid session.
@@ -308,6 +332,8 @@ def require_auth(agent_id, base_dir=DEFAULT_BASE_DIR):
     Returns:
         tuple: (success: bool, error_message or None)
     """
+    from avcpm_security import validate_agent_id
+    validate_agent_id(agent_id)
     session = get_session(agent_id, base_dir)
     if session is None:
         return False, f"Agent {agent_id} is not authenticated. Run 'avcpm agent authenticate {agent_id}' first."
@@ -315,12 +341,12 @@ def require_auth(agent_id, base_dir=DEFAULT_BASE_DIR):
     return True, None
 
 
-def get_session_token_from_env():
+def get_session_token_from_env() -> Optional[Dict]:
     """Get session token from environment variable."""
     return os.environ.get("AVCPM_SESSION_TOKEN")
 
 
-def get_authenticated_agent_from_env(base_dir=DEFAULT_BASE_DIR):
+def get_authenticated_agent_from_env(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get authenticated agent from environment.
     
@@ -340,7 +366,7 @@ def get_authenticated_agent_from_env(base_dir=DEFAULT_BASE_DIR):
     return None, None
 
 
-def list_active_sessions(base_dir=DEFAULT_BASE_DIR):
+def list_active_sessions(base_dir=DEFAULT_BASE_DIR) -> List[Dict]:
     """
     List all active sessions.
     
@@ -357,21 +383,31 @@ def list_active_sessions(base_dir=DEFAULT_BASE_DIR):
     for filename in os.listdir(sessions_dir):
         if filename.endswith(".json"):
             session_file = os.path.join(sessions_dir, filename)
-            with open(session_file, "r") as f:
-                session_data = json.load(f)
-            
-            # Check if expired
-            expires_at = datetime.fromisoformat(session_data["expires_at"])
-            if datetime.now() <= expires_at:
-                sessions.append(session_data)
-            else:
-                # Clean up expired session
-                os.remove(session_file)
+            try:
+                with open(session_file, "r") as f:
+                    session_data = json.load(f)
+                
+                # Check if expired
+                expires_at = datetime.fromisoformat(session_data["expires_at"])
+                if datetime.now() <= expires_at:
+                    sessions.append(session_data)
+                else:
+                    # Clean up expired session
+                    os.remove(session_file)
+            except (json.JSONDecodeError, OSError) as e:
+                # Quarantine corrupted session file
+                corrupt_path = session_file + ".corrupt"
+                try:
+                    os.rename(session_file, corrupt_path)
+                    print(f"Warning: Quarantined corrupted session file: {filename} -> {filename}.corrupt")
+                except OSError:
+                    pass  # Can't quarantine, skip
+                continue
     
     return sessions
 
 
-def cleanup_expired_sessions(base_dir=DEFAULT_BASE_DIR):
+def cleanup_expired_sessions(base_dir=DEFAULT_BASE_DIR) -> Any:
     """Clean up all expired sessions and challenges."""
     ensure_auth_directories(base_dir)
     
@@ -381,12 +417,22 @@ def cleanup_expired_sessions(base_dir=DEFAULT_BASE_DIR):
         for filename in os.listdir(sessions_dir):
             if filename.endswith(".json"):
                 session_file = os.path.join(sessions_dir, filename)
-                with open(session_file, "r") as f:
-                    session_data = json.load(f)
-                
-                expires_at = datetime.fromisoformat(session_data["expires_at"])
-                if datetime.now() > expires_at:
-                    os.remove(session_file)
+                try:
+                    with open(session_file, "r") as f:
+                        session_data = json.load(f)
+                    
+                    expires_at = datetime.fromisoformat(session_data["expires_at"])
+                    if datetime.now() > expires_at:
+                        os.remove(session_file)
+                except (json.JSONDecodeError, OSError) as e:
+                    # Quarantine corrupted session file
+                    corrupt_path = session_file + ".corrupt"
+                    try:
+                        os.rename(session_file, corrupt_path)
+                        print(f"Warning: Quarantined corrupted session file: {filename} -> {filename}.corrupt")
+                    except OSError:
+                        pass  # Can't quarantine, skip
+                    continue
     
     # Clean up expired challenges
     challenges_dir = get_challenges_dir(base_dir)
@@ -394,15 +440,25 @@ def cleanup_expired_sessions(base_dir=DEFAULT_BASE_DIR):
         for filename in os.listdir(challenges_dir):
             if filename.endswith(".json"):
                 challenge_file = os.path.join(challenges_dir, filename)
-                with open(challenge_file, "r") as f:
-                    challenge_data = json.load(f)
-                
-                expires_at = datetime.fromisoformat(challenge_data["expires_at"])
-                if datetime.now() > expires_at:
-                    os.remove(challenge_file)
+                try:
+                    with open(challenge_file, "r") as f:
+                        challenge_data = json.load(f)
+                    
+                    expires_at = datetime.fromisoformat(challenge_data["expires_at"])
+                    if datetime.now() > expires_at:
+                        os.remove(challenge_file)
+                except (json.JSONDecodeError, OSError) as e:
+                    # Quarantine corrupted challenge file
+                    corrupt_path = challenge_file + ".corrupt"
+                    try:
+                        os.rename(challenge_file, corrupt_path)
+                        print(f"Warning: Quarantined corrupted challenge file: {filename} -> {filename}.corrupt")
+                    except OSError:
+                        pass  # Can't quarantine, skip
+                    continue
 
 
-def print_help():
+def print_help() -> None:
     """Print CLI help message."""
     print("AVCPM Agent Authentication System")
     print("Usage:")

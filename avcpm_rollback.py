@@ -24,13 +24,14 @@ from avcpm_branch import (
     DEFAULT_BASE_DIR
 )
 from avcpm_security import safe_copy, safe_read
+from avcpm_audit import audit_log, EVENT_ROLLBACK
 
 # Backup metadata
 BACKUP_STATUS_ACTIVE = "active"
 BACKUP_STATUS_RESTORED = "restored"
 
 
-def get_backups_dir(base_dir=DEFAULT_BASE_DIR):
+def get_backups_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the backups directory path."""
     return os.path.join(base_dir, "backups")
 
@@ -233,6 +234,7 @@ def rollback(commit_id: str, base_dir=DEFAULT_BASE_DIR, dry_run: bool = False) -
         if parent_commit:
             # Try to restore from parent commit
             parent_staging = _get_file_at_commit(filepath, parent_commit.get("commit_id"), base_dir)
+            # M-V2: Verify parent staging exists before deleting production file
             if parent_staging:
                 if not dry_run:
                     try:
@@ -245,16 +247,12 @@ def rollback(commit_id: str, base_dir=DEFAULT_BASE_DIR, dry_run: bool = False) -
                     "restored_from": parent_commit.get("commit_id")
                 })
             else:
-                # File didn't exist in parent - remove it
-                if os.path.exists(prod_path):
-                    if not dry_run:
-                        os.remove(prod_path)
-                    result["files_restored"].append({
-                        "file": filepath,
-                        "action": "deleted"
-                    })
-                else:
-                    result["files_not_found"].append(filepath)
+                # Parent commit exists but staging file is missing - verify before delete
+                result["error"] = (
+                    f"Parent commit {parent_commit.get('commit_id')} exists but staging file "
+                    f"for '{filepath}' is missing. Cannot verify rollback. Aborting."
+                )
+                return result
         else:
             # No parent commit - file was added in this commit, remove it
             if os.path.exists(prod_path):
@@ -268,6 +266,14 @@ def rollback(commit_id: str, base_dir=DEFAULT_BASE_DIR, dry_run: bool = False) -
                 result["files_not_found"].append(filepath)
     
     result["success"] = True
+    
+    audit_log(EVENT_ROLLBACK, commit_data.get("agent_id", "unknown"), {
+        "commit_id": commit_id,
+        "action": "rollback",
+        "branch": branch_name,
+        "files_restored": result["files_restored"],
+        "backup_id": result.get("backup_id")
+    })
     return result
 
 
@@ -318,6 +324,13 @@ def unstage(commit_id: str, branch_name: Optional[str] = None, base_dir=DEFAULT_
     os.remove(commit_path)
     result["ledger_removed"] = True
     result["success"] = True
+    
+    audit_log(EVENT_ROLLBACK, commit_data.get("agent_id", "unknown"), {
+        "commit_id": commit_id,
+        "action": "unstage",
+        "branch": branch_name,
+        "files_removed": result["files_removed"]
+    })
     
     return result
 
@@ -377,6 +390,13 @@ def restore_file(filepath: str, commit_id: Optional[str] = None, base_dir=DEFAUL
     result["restored_from"] = staging_path
     result["success"] = True
     
+    audit_log(EVENT_ROLLBACK, "unknown", {
+        "commit_id": commit_id,
+        "action": "restore_file",
+        "filepath": filepath,
+        "restored_from": staging_path
+    })
+    
     return result
 
 
@@ -435,6 +455,13 @@ def reset_soft(target_commit: str, branch_name: Optional[str] = None, base_dir=D
             result["commits_removed"].append(commit_id)
     
     result["success"] = True
+    
+    audit_log(EVENT_ROLLBACK, "unknown", {
+        "commit_id": target_commit,
+        "action": "reset_soft",
+        "branch": branch_name,
+        "commits_removed": result["commits_removed"]
+    })
     return result
 
 
@@ -500,6 +527,15 @@ def reset_hard(target_commit: str, branch_name: Optional[str] = None, base_dir=D
                 result["files_removed"].append(change.get("file"))
     
     result["success"] = True
+    
+    audit_log(EVENT_ROLLBACK, "unknown", {
+        "commit_id": target_commit,
+        "action": "reset_hard",
+        "branch": branch_name,
+        "commits_removed": result["commits_removed"],
+        "files_removed": result["files_removed"],
+        "backup_id": result.get("backup_id")
+    })
     return result
 
 
@@ -791,7 +827,7 @@ def _print_backup_restore_result(result: Dict):
         print(f"✗ Restore failed: {result.get('error', 'Unknown error')}")
 
 
-def main():
+def main() -> Any:
     """CLI interface for rollback and recovery commands."""
     if len(sys.argv) < 2:
         print("Usage: python avcpm_rollback.py <command> [args...]")

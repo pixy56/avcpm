@@ -350,7 +350,7 @@ def expire_stale_claims(max_age_hours: int = 24,
 
 # CLI Interface
 
-def main():
+def main() -> Any:
     parser = argparse.ArgumentParser(
         description="AVCPM Work-in-Progress Tracking"
     )

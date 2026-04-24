@@ -258,6 +258,50 @@ def verify_ledger_integrity(branch_name: str, base_dir: str = DEFAULT_BASE_DIR) 
                 ))
                 continue
         
+        # Verify RSA signature
+        signature = entry.get('signature')
+        agent_id_from_entry = entry.get('agent_id')
+        timestamp_from_entry = entry.get('timestamp')
+        changes = entry.get('changes', [])
+        if signature and agent_id_from_entry:
+            try:
+                from avcpm_agent import verify_commit_signature
+                sig_valid = verify_commit_signature(
+                    commit_id, timestamp_from_entry, changes,
+                    agent_id_from_entry, signature, base_dir
+                )
+                if not sig_valid:
+                    report.invalid_entries += 1
+                    report.healthy = False
+                    report.tampered_entries.append(IntegrityCheckResult(
+                        commit_id=commit_id,
+                        status='invalid_signature',
+                        message="RSA signature verification failed for this commit",
+                        previous_hash=entry.get('previous_hash')
+                    ))
+                    continue
+            except Exception as e:
+                report.invalid_entries += 1
+                report.healthy = False
+                report.tampered_entries.append(IntegrityCheckResult(
+                    commit_id=commit_id,
+                    status='invalid_signature',
+                    message=f"Signature verification error: {e}",
+                    previous_hash=entry.get('previous_hash')
+                ))
+                continue
+        elif i > 0:
+            # Non-genesis entries should have signatures
+            report.invalid_entries += 1
+            report.healthy = False
+            report.tampered_entries.append(IntegrityCheckResult(
+                commit_id=commit_id,
+                status='invalid_signature',
+                message="Missing signature on non-genesis entry",
+                previous_hash=entry.get('previous_hash')
+            ))
+            continue
+        
         # Entry is valid
         report.valid_entries += 1
         previous_hash = stored_hash
