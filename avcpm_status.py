@@ -355,80 +355,101 @@ def output_json(data: Dict[str, Any]) -> None:
     print(json.dumps(data, indent=2))
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="AVCPM Status Reporting Dashboard",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+def main(base_dir: str = DEFAULT_BASE_DIR, json_output: bool = False,
+            tasks_only: bool = False, ledger_only: bool = False,
+            staging_only: bool = False, health_only: bool = False):
+    """"Main entry point with optional direct parameters.
+    
+    Args:
+        base_dir: Base directory for AVCPM
+        json_output: Output as JSON
+        tasks_only: Show only task board
+        ledger_only: Show only ledger
+        staging_only: Show only staging
+        health_only: Show only health
+    """
+    # If run directly (not imported), parse CLI args
+    if base_dir == DEFAULT_BASE_DIR and not any([json_output, tasks_only, ledger_only, staging_only, health_only]):
+        parser = argparse.ArgumentParser(
+            description="AVCPM Status Reporting Dashboard",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="""
 Examples:
   python avcpm_status.py              # Show all sections
   python avcpm_status.py --tasks      # Show only task board
   python avcpm_status.py --json       # Machine-readable output
         """
-    )
-    
-    parser.add_argument(
-        '--tasks',
-        action='store_true',
-        help='Show only task board summary'
-    )
-    parser.add_argument(
-        '--ledger',
-        action='store_true',
-        help='Show only ledger activity'
-    )
-    parser.add_argument(
-        '--staging',
-        action='store_true',
-        help='Show only staging status'
-    )
-    parser.add_argument(
-        '--health',
-        action='store_true',
-        help='Show only system health'
-    )
-    parser.add_argument(
-        '--json',
-        action='store_true',
-        help='Output in JSON format'
-    )
-    
-    args = parser.parse_args()
+        )
+        
+        parser.add_argument(
+            '--base-dir',
+            default=DEFAULT_BASE_DIR,
+            help='Base directory for AVCPM'
+        )
+        parser.add_argument(
+            '--tasks',
+            action='store_true',
+            help='Show only task board summary'
+        )
+        parser.add_argument(
+            '--ledger',
+            action='store_true',
+            help='Show only ledger activity'
+        )
+        parser.add_argument(
+            '--staging',
+            action='store_true',
+            help='Show only staging status'
+        )
+        parser.add_argument(
+            '--health',
+            action='store_true',
+            help='Show only system health'
+        )
+        parser.add_argument(
+            '--json',
+            action='store_true',
+            help='Output in JSON format'
+        )
+        
+        cli_args = parser.parse_args()
+        base_dir = cli_args.base_dir
+        json_output = cli_args.json
+        tasks_only = cli_args.tasks
+        ledger_only = cli_args.ledger
+        staging_only = cli_args.staging
+        health_only = cli_args.health
     
     # If no specific section requested, show all
-    show_all = not (args.tasks or args.ledger or args.staging or args.health)
+    show_all = not (tasks_only or ledger_only or staging_only or health_only)
     
     # Generate reports
     reports = {}
     
-    if show_all or args.tasks:
-        reports['tasks'] = generate_tasks_report()
+    if show_all or tasks_only:
+        reports['tasks'] = generate_tasks_report(base_dir)
     
-    if show_all or args.ledger:
-        reports['ledger'] = generate_ledger_report()
+    if show_all or ledger_only:
+        reports['ledger'] = generate_ledger_report(base_dir)
     
-    if show_all or args.staging:
-        reports['staging'] = generate_staging_report()
+    if show_all or staging_only:
+        reports['staging'] = generate_staging_report(base_dir)
     
-    if show_all or args.health:
-        reports['health'] = generate_health_report()
+    if show_all or health_only:
+        reports['health'] = generate_health_report(base_dir)
     
     # Output
-    if args.json:
+    if json_output:
         output_json(reports)
     else:
         if 'tasks' in reports:
             display_tasks_report(reports['tasks'])
         
         if 'ledger' in reports:
-            display_ledger_report(reports['ledger'])
+            display_ledger_report(reports['ledger'], base_dir)
         
         if 'staging' in reports:
             display_staging_report(reports['staging'])
         
         if 'health' in reports:
             display_health_report(reports['health'])
-
-
-if __name__ == '__main__':
-    main()

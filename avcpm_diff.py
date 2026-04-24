@@ -378,6 +378,8 @@ def blame(filepath: str, base_dir: str = DEFAULT_BASE_DIR) -> List[Dict]:
     """
     Show line-by-line authorship for a file.
     
+    Walks commit history oldest→newest, tracking which commit introduced each line.
+    
     Args:
         filepath: Path to the file
         base_dir: Base directory for AVCPM
@@ -390,29 +392,59 @@ def blame(filepath: str, base_dir: str = DEFAULT_BASE_DIR) -> List[Dict]:
     if not history:
         return []
     
-    # Get the current version of the file
+    # Read current file content
     current_content = ""
     if os.path.exists(filepath):
         with open(filepath, "r") as f:
             current_content = f.read()
     
     lines = current_content.splitlines()
+    if not lines:
+        return []
     
-    # Track which commit introduced/modified each line
-    blamed_lines = []
+    # Initialize: all lines attributed to None (will be overwritten by first commit that introduces them)
+    line_attribution = [None] * len(lines)
     
-    for line_num, line_content in enumerate(lines, 1):
-        # Find the most recent commit that touched this line
-        # For simplicity, we attribute to the most recent commit that modified the file
-        # A more sophisticated implementation would track individual line changes
-        most_recent = history[0] if history else None
+    # Walk commits oldest→newest
+    for i in range(len(history) - 1, -1, -1):
+        commit_entry = history[i]
+        commit_id = commit_entry.get("commit_id", "unknown")
+        agent_id = commit_entry.get("agent_id", "unknown")
+        timestamp = commit_entry.get("timestamp", "unknown")
+        changes = commit_entry.get("changes", [])
         
+        # Find the change for this file in this commit
+        for change in changes:
+            if change.get("filepath") == filepath or change.get("staging_path", "").endswith(os.path.basename(filepath)):
+                # This commit touched this file — attribute all still-unattributed lines to this commit
+                # (This is a simplified model: any commit that touched the file gets credit for all
+                #  lines that haven't been attributed to a later commit yet)
+                for line_idx in range(len(lines)):
+                    if line_attribution[line_idx] is None:
+                        line_attribution[line_idx] = {
+                            "commit_id": commit_id,
+                            "agent_id": agent_id,
+                            "timestamp": timestamp
+                        }
+                break
+    
+    # Any lines still unattributed were in the file before tracked history
+    for line_idx in range(len(lines)):
+        if line_attribution[line_idx] is None:
+            line_attribution[line_idx] = {
+                "commit_id": "pre-history",
+                "agent_id": "unknown",
+                "timestamp": "unknown"
+            }
+    
+    # Build result
+    blamed_lines = []
+    for line_num, line_content in enumerate(lines, 1):
+        attr = line_attribution[line_num - 1]
         blamed_lines.append({
             "line_number": line_num,
             "content": line_content,
-            "commit_id": most_recent.get("commit_id") if most_recent else None,
-            "agent_id": most_recent.get("agent_id") if most_recent else None,
-            "timestamp": most_recent.get("timestamp") if most_recent else None
+            **attr
         })
     
     return blamed_lines

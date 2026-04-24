@@ -301,8 +301,7 @@ def create_task(task_id, description, assignee="unassigned", depends_on=None, ba
     
     path = os.path.join(tasks_dir, "todo", f"{task_id}.json")
     if os.path.exists(path):
-        print(f"Error: Task {task_id} already exists.")
-        sys.exit(1)
+        raise ValueError(f"Task {task_id} already exists.")
     
     # Validate dependencies if provided
     deps_list = []
@@ -315,11 +314,13 @@ def create_task(task_id, description, assignee="unassigned", depends_on=None, ba
         # Validate all dependencies exist
         for dep in deps_list:
             if not load_task(dep, base_dir):
-                print(f"Error: Dependency task '{dep}' not found")
-                sys.exit(1)
+                raise ValueError(f"Dependency task '{dep}' not found")
             if dep == task_id:
-                print(f"Error: Task cannot depend on itself")
-                sys.exit(1)
+                raise ValueError(f"Task cannot depend on itself")
+        # M-A3: Check for dependency cycles
+        for dep in deps_list:
+            if would_create_cycle(task_id, dep, base_dir):
+                raise ValueError(f"Cannot add dependency: would create circular dependency via {dep}")
     
     task_data = {
         "id": task_id,
@@ -342,8 +343,7 @@ def create_task(task_id, description, assignee="unassigned", depends_on=None, ba
 
 def move_task(task_id, new_status, force=False, base_dir=DEFAULT_BASE_DIR):
     if new_status not in COLUMNS:
-        print(f"Error: Invalid status. Use {COLUMNS}")
-        sys.exit(1)
+        raise ValueError(f"Invalid status '{new_status}'. Use {COLUMNS}")
     
     tasks_dir = get_tasks_dir(base_dir)
     
@@ -358,20 +358,17 @@ def move_task(task_id, new_status, force=False, base_dir=DEFAULT_BASE_DIR):
             break
     
     if not current_path:
-        print(f"Error: Task {task_id} not found.")
-        sys.exit(1)
+        raise ValueError(f"Task {task_id} not found.")
     
     # Load task data
     with open(current_path, "r") as f:
         task_data = json.load(f)
     
-    # Check dependencies before moving to in-progress or review
-    if new_status in ["in-progress", "review"] and not force:
+    # Check dependencies before moving to in-progress or review or done
+    if new_status in ["in-progress", "review", "done"] and not force:
         blocked_by = get_blocked_by(task_id, base_dir)
         if blocked_by:
-            print(f"Error: Task {task_id} is blocked by incomplete dependencies: {', '.join(blocked_by)}")
-            print(f"Use --force to override (admin/debug)")
-            sys.exit(1)
+            raise ValueError(f"Task {task_id} is blocked by incomplete dependencies: {', '.join(blocked_by)}. Use --force to override.")
     
     # Update status history
     task_data["status_history"].append({
@@ -379,12 +376,22 @@ def move_task(task_id, new_status, force=False, base_dir=DEFAULT_BASE_DIR):
         "timestamp": datetime.now().isoformat()
     })
     
-    # Move file
+    # Write updated data atomically to current path first, then move
     new_path = os.path.join(tasks_dir, new_status, f"{task_id}.json")
-    shutil.move(current_path, new_path)
     
-    with open(new_path, "w") as f:
-        json.dump(task_data, f, indent=4)
+    # Write updated JSON to temp file in same dir, then atomic replace
+    import tempfile
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(current_path), suffix=".tmp")
+    try:
+        with os.fdopen(tmp_fd, "w") as f:
+            json.dump(task_data, f, indent=4)
+        os.replace(tmp_path, current_path)
+    except Exception:
+        os.remove(tmp_path) if os.path.exists(tmp_path) else None
+        raise
+    
+    # Move the fully-updated file to the new column
+    shutil.move(current_path, new_path)
     
     if force and new_status in ["in-progress", "review"]:
         print(f"Task {task_id} moved to {new_status} (forced, bypassed dependency check).")
@@ -425,24 +432,17 @@ def list_blocked(base_dir=DEFAULT_BASE_DIR):
         print(f"    Blocked by: {', '.join(task['blocked_by'])}")
 
 def deps_add(task_id, depends_on_id, base_dir=DEFAULT_BASE_DIR):
-    """CLI handler for adding dependencies."""
-    try:
-        add_dependency(task_id, depends_on_id, base_dir)
-        print(f"Added dependency: {task_id} now depends on {depends_on_id}")
-    except ValueError as e:
-        print(f"Error: {e}")
-        sys.exit(1)
+    """CLI handler for adding dependencies. Returns True on success, raises ValueError on error."""
+    add_dependency(task_id, depends_on_id, base_dir)
+    print(f"Added dependency: {task_id} now depends on {depends_on_id}")
 
 def deps_remove(task_id, depends_on_id, base_dir=DEFAULT_BASE_DIR):
-    """CLI handler for removing dependencies."""
-    try:
-        if remove_dependency(task_id, depends_on_id, base_dir):
-            print(f"Removed dependency: {task_id} no longer depends on {depends_on_id}")
-        else:
-            print(f"Task {task_id} did not depend on {depends_on_id}")
-    except ValueError as e:
-        print(f"Error: {e}")
-        sys.exit(1)
+    """CLI handler for removing dependencies. Returns True on success, raises ValueError on error."""
+    removed = remove_dependency(task_id, depends_on_id, base_dir)
+    if removed:
+        print(f"Removed dependency: {task_id} no longer depends on {depends_on_id}")
+    else:
+        raise ValueError(f"Task {task_id} did not depend on {depends_on_id}")
 
 def deps_show(task_id, base_dir=DEFAULT_BASE_DIR):
     """CLI handler for showing dependency graph."""
@@ -459,50 +459,53 @@ if __name__ == "__main__":
     
     cmd = sys.argv[1]
     
-    if cmd == "create":
-        if len(sys.argv) < 4:
-            print_help()
-            sys.exit(1)
-        assignee = sys.argv[4] if len(sys.argv) > 4 else "unassigned"
-        depends_on = sys.argv[5] if len(sys.argv) > 5 else None
-        create_task(sys.argv[2], sys.argv[3], assignee, depends_on)
-    
-    elif cmd == "move":
-        if len(sys.argv) < 4:
-            print_help()
-            sys.exit(1)
-        force = "--force" in sys.argv
-        new_status = sys.argv[3]
-        # Remove --force from args if present
-        if new_status == "--force":
-            new_status = sys.argv[4] if len(sys.argv) > 4 else None
-        move_task(sys.argv[2], new_status, force)
-    
-    elif cmd == "list":
-        list_tasks()
-    
-    elif cmd == "blocked":
-        list_blocked()
-    
-    elif cmd == "deps":
-        if len(sys.argv) < 4:
-            print_help()
-            sys.exit(1)
+    try:
+        if cmd == "create":
+            if len(sys.argv) < 4:
+                print_help()
+                sys.exit(1)
+            assignee = sys.argv[4] if len(sys.argv) > 4 else "unassigned"
+            depends_on = sys.argv[5] if len(sys.argv) > 5 else None
+            create_task(sys.argv[2], sys.argv[3], assignee, depends_on)
         
-        subcmd = sys.argv[2]
+        elif cmd == "move":
+            if len(sys.argv) < 4:
+                print_help()
+                sys.exit(1)
+            force = "--force" in sys.argv
+            new_status = sys.argv[3]
+            if new_status == "--force":
+                new_status = sys.argv[4] if len(sys.argv) > 4 else None
+            move_task(sys.argv[2], new_status, force)
         
-        if subcmd == "add" and len(sys.argv) == 5:
-            deps_add(sys.argv[3], sys.argv[4])
-        elif subcmd == "remove" and len(sys.argv) == 5:
-            deps_remove(sys.argv[3], sys.argv[4])
-        elif subcmd == "show" and len(sys.argv) == 4:
-            deps_show(sys.argv[3])
-        elif subcmd == "dependents" and len(sys.argv) == 4:
-            deps_dependents(sys.argv[3])
+        elif cmd == "list":
+            list_tasks()
+        
+        elif cmd == "blocked":
+            list_blocked()
+        
+        elif cmd == "deps":
+            if len(sys.argv) < 4:
+                print_help()
+                sys.exit(1)
+            
+            subcmd = sys.argv[2]
+            
+            if subcmd == "add" and len(sys.argv) == 5:
+                deps_add(sys.argv[3], sys.argv[4])
+            elif subcmd == "remove" and len(sys.argv) == 5:
+                deps_remove(sys.argv[3], sys.argv[4])
+            elif subcmd == "show" and len(sys.argv) == 4:
+                deps_show(sys.argv[3])
+            elif subcmd == "dependents" and len(sys.argv) == 4:
+                deps_dependents(sys.argv[3])
+            else:
+                print_help()
+                sys.exit(1)
+        
         else:
             print_help()
             sys.exit(1)
-    
-    else:
-        print_help()
+    except ValueError as e:
+        print(f"Error: {e}")
         sys.exit(1)
