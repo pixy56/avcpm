@@ -4,6 +4,8 @@ Standalone test runner for AVCPM integration tests.
 Does not require pytest - runs tests directly.
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import json
@@ -24,6 +26,7 @@ import avcpm_commit
 import avcpm_merge
 import avcpm_validate
 import avcpm_status
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 
 # =============================================================================
@@ -32,27 +35,27 @@ import avcpm_status
 
 class TestResult:
     """Simple test result container."""
-    def __init__(self):
+    def __init__(self) -> None:
         self.passed = []
         self.failed = []
         self.skipped = []
         self.bugs_found = []
 
-    def add_pass(self, test_name):
+    def add_pass(self, test_name: Any) -> None:
         self.passed.append(test_name)
         print(f"  ✓ {test_name}")
 
-    def add_fail(self, test_name, error):
+    def add_fail(self, test_name: Any, error: Any) -> None:
         self.failed.append((test_name, error))
         print(f"  ✗ {test_name}")
         print(f"    Error: {str(error)[:200]}")
 
-    def add_bug(self, test_name, description):
+    def add_bug(self, test_name: Any, description: str) -> None:
         self.bugs_found.append((test_name, description))
         print(f"  ⚠ {test_name}")
         print(f"    BUG DOCUMENTED: {description}")
 
-    def summary(self):
+    def summary(self) -> Any:
         print("\n" + "=" * 70)
         print("TEST SUMMARY")
         print("=" * 70)
@@ -77,7 +80,7 @@ class TestResult:
 
 
 @contextmanager
-def temp_avcpm_dir():
+def temp_avcpm_dir() -> None:
     """Create a temporary AVCPM directory structure."""
     temp_dir = tempfile.mkdtemp(prefix="avcpm_test_")
     
@@ -101,7 +104,7 @@ def temp_avcpm_dir():
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def mock_avcpm_paths(temp_dir):
+def mock_avcpm_paths(temp_dir: Any) -> Any:
     """Set up mock paths for testing."""
     base = temp_dir
     avcpm_base = os.path.join(base, ".avcpm")
@@ -135,7 +138,7 @@ def mock_avcpm_paths(temp_dir):
     return originals
 
 
-def restore_avcpm_paths(originals):
+def restore_avcpm_paths(originals: Any) -> None:
     """Restore original path values."""
     avcpm_task.BASE_DIR = originals['task']
     avcpm_commit.LEDGER_DIR = originals['commit_ledger']
@@ -149,7 +152,7 @@ def restore_avcpm_paths(originals):
     avcpm_status.REVIEWS_DIR = originals['status_reviews']
 
 
-def create_approval(reviews_dir, commit_id, approver="test_user", notes="LGTM"):
+def create_approval(reviews_dir: Any, commit_id: str, approver: Any="test_user", notes: Any="LGTM") -> Any:
     """Create an approval review file."""
     review_path = os.path.join(reviews_dir, f"{commit_id}.review")
     review_content = f"""APPROVED
@@ -162,7 +165,7 @@ Notes: {notes}
     return review_path
 
 
-def create_rejection(reviews_dir, commit_id, reviewer="test_user", reason="Needs work"):
+def create_rejection(reviews_dir: Any, commit_id: str, reviewer: Any="test_user", reason: str="Needs work") -> Any:
     """Create a rejection review file."""
     review_path = os.path.join(reviews_dir, f"{commit_id}.review")
     review_content = f"""REJECTED
@@ -179,7 +182,7 @@ Reason: {reason}
 # Tests
 # =============================================================================
 
-def test_full_happy_path():
+def test_full_happy_path() -> Tuple[Any, ...]:
     """Test complete workflow: task → commit → validate → approve → merge → status."""
     with temp_avcpm_dir() as temp_dir:
         originals = mock_avcpm_paths(temp_dir)
@@ -263,7 +266,7 @@ def test_full_happy_path():
             restore_avcpm_paths(originals)
 
 
-def test_task_workflow_states():
+def test_task_workflow_states() -> Tuple[Any, ...]:
     """Test moving tasks through workflow states."""
     with temp_avcpm_dir() as temp_dir:
         originals = mock_avcpm_paths(temp_dir)
@@ -290,7 +293,7 @@ def test_task_workflow_states():
             restore_avcpm_paths(originals)
 
 
-def test_merge_without_approval():
+def test_merge_without_approval() -> Tuple[Any, ...]:
     """Test that merge fails without approval."""
     with temp_avcpm_dir() as temp_dir:
         originals = mock_avcpm_paths(temp_dir)
@@ -322,7 +325,7 @@ def test_merge_without_approval():
             restore_avcpm_paths(originals)
 
 
-def test_validate_tampered_file():
+def test_validate_tampered_file() -> Tuple[Any, ...]:
     """Test validation catches tampered files."""
     with temp_avcpm_dir() as temp_dir:
         originals = mock_avcpm_paths(temp_dir)
@@ -360,7 +363,7 @@ def test_validate_tampered_file():
             restore_avcpm_paths(originals)
 
 
-def test_validate_missing_file():
+def test_validate_missing_file() -> Tuple[Any, ...]:
     """Test validation handles missing files."""
     with temp_avcpm_dir() as temp_dir:
         originals = mock_avcpm_paths(temp_dir)
@@ -395,7 +398,7 @@ def test_validate_missing_file():
             restore_avcpm_paths(originals)
 
 
-def test_validate_untracked_file():
+def test_validate_untracked_file() -> Tuple[Any, ...]:
     """Test validation detects untracked staging files."""
     with temp_avcpm_dir() as temp_dir:
         originals = mock_avcpm_paths(temp_dir)
@@ -420,7 +423,7 @@ def test_validate_untracked_file():
             restore_avcpm_paths(originals)
 
 
-def test_duplicate_task_id():
+def test_duplicate_task_id() -> Tuple[Any, ...]:
     """Test duplicate task handling."""
     with temp_avcpm_dir() as temp_dir:
         originals = mock_avcpm_paths(temp_dir)
@@ -441,7 +444,7 @@ def test_duplicate_task_id():
             restore_avcpm_paths(originals)
 
 
-def test_multiple_files_commit():
+def test_multiple_files_commit() -> Tuple[Any, ...]:
     """Test committing multiple files."""
     with temp_avcpm_dir() as temp_dir:
         originals = mock_avcpm_paths(temp_dir)
@@ -472,7 +475,7 @@ def test_multiple_files_commit():
             restore_avcpm_paths(originals)
 
 
-def test_status_health_check():
+def test_status_health_check() -> Tuple[Any, ...]:
     """Test status health check detects issues."""
     with temp_avcpm_dir() as temp_dir:
         originals = mock_avcpm_paths(temp_dir)
@@ -500,7 +503,7 @@ def test_status_health_check():
             restore_avcpm_paths(originals)
 
 
-def test_empty_file_commit():
+def test_empty_file_commit() -> Tuple[Any, ...]:
     """Test committing empty files."""
     with temp_avcpm_dir() as temp_dir:
         originals = mock_avcpm_paths(temp_dir)
@@ -532,7 +535,7 @@ def test_empty_file_commit():
 # Main Runner
 # =============================================================================
 
-def main():
+def main() -> None:
     print("=" * 70)
     print("AVCPM Phase 1 Integration Test Suite")
     print("=" * 70)

@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Dict, List, Optional, Tuple, Union, Any
 """
 AVCPM Conflict Detection & Resolution Module
 
@@ -32,12 +34,12 @@ CONFLICT_STATUS_ABORTED = "aborted"
 RESOLUTION_STRATEGIES = ["ours", "theirs", "union", "manual"]
 
 
-def get_conflicts_dir(base_dir=DEFAULT_BASE_DIR):
+def get_conflicts_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the conflicts directory path."""
     return os.path.join(base_dir, "conflicts")
 
 
-def get_conflict_path(conflict_id, base_dir=DEFAULT_BASE_DIR):
+def get_conflict_path(conflict_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the path to a conflict file."""
     return os.path.join(get_conflicts_dir(base_dir), f"{conflict_id}.json")
 
@@ -78,7 +80,7 @@ def _write_file_content(filepath, content):
         f.write(content)
 
 
-def list_modified_files(branch, since_commit=None, base_dir=DEFAULT_BASE_DIR):
+def list_modified_files(branch, since_commit=None, base_dir=DEFAULT_BASE_DIR) -> List[Dict]:
     """
     List files modified in a branch since a specific commit.
     
@@ -204,7 +206,7 @@ def _find_common_ancestor(branch_a, branch_b, base_dir=DEFAULT_BASE_DIR):
     return sorted(common)[-1]
 
 
-def check_file_conflict(file_a, file_b, base_file):
+def check_file_conflict(file_a, file_b, base_file) -> bool:
     """
     Check if a single file has conflicts between versions.
     
@@ -221,7 +223,7 @@ def check_file_conflict(file_a, file_b, base_file):
         }
     """
     # Handle file paths vs content
-    def get_content(f):
+    def get_content(f) -> Optional[Dict]:
         if f is None:
             return None
         if os.path.exists(f):
@@ -270,7 +272,7 @@ def check_file_conflict(file_a, file_b, base_file):
     return {"has_conflict": True, "conflict_type": "content", "details": "Both branches modified the file"}
 
 
-def merge_three_way(base_content, a_content, b_content):
+def merge_three_way(base_content, a_content, b_content) -> Any:
     """
     Perform a three-way merge.
     
@@ -436,7 +438,7 @@ def merge_three_way(base_content, a_content, b_content):
     return result
 
 
-def merge_files(base_file, a_file, b_file, output_file):
+def merge_files(base_file, a_file, b_file, output_file) -> Any:
     """
     Merge files with conflict markers.
     
@@ -480,7 +482,7 @@ def merge_files(base_file, a_file, b_file, output_file):
     }
 
 
-def detect_conflicts(branch_a, branch_b, base_dir=DEFAULT_BASE_DIR):
+def detect_conflicts(branch_a, branch_b, base_dir=DEFAULT_BASE_DIR) -> List[Dict]:
     """
     Find conflicts between two branches.
     
@@ -566,7 +568,7 @@ def detect_conflicts(branch_a, branch_b, base_dir=DEFAULT_BASE_DIR):
     }
 
 
-def auto_merge_possible(branch_a, branch_b, base_dir=DEFAULT_BASE_DIR):
+def auto_merge_possible(branch_a, branch_b, base_dir=DEFAULT_BASE_DIR) -> bool:
     """
     Check if auto-merge is safe between two branches.
     
@@ -582,7 +584,7 @@ def auto_merge_possible(branch_a, branch_b, base_dir=DEFAULT_BASE_DIR):
     return result["auto_mergeable"]
 
 
-def get_conflicts(status="open", base_dir=DEFAULT_BASE_DIR):
+def get_conflicts(status="open", base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     List conflicts with optional status filter.
     
@@ -617,7 +619,7 @@ def get_conflicts(status="open", base_dir=DEFAULT_BASE_DIR):
     return conflicts
 
 
-def resolve_conflict(conflict_id, resolution_strategy, base_dir=DEFAULT_BASE_DIR, **kwargs):
+def resolve_conflict(conflict_id, resolution_strategy, base_dir=DEFAULT_BASE_DIR, **kwargs) -> bool:
     """
     Mark a conflict as resolved with a given strategy.
     
@@ -722,7 +724,7 @@ def _print_conflict_list(conflicts):
         print(f"{cid:<30} {status:<10} {ctype:<15} {file_path}")
 
 
-def main():
+def main() -> Any:
     """CLI interface for conflict detection and resolution."""
     if len(sys.argv) < 2:
         print("Usage: python avcpm_conflict.py <command> [args...]")

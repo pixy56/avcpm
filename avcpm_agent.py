@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Dict, List, Optional, Tuple, Union, Any
 """
 AVCPM Agent Identity System
 
@@ -38,24 +40,24 @@ _V1_PREFIX = b"v1:"  # Legacy CBC format: raw salt+iv+ciphertext
 _V2_PREFIX = b"v2:"  # New GCM format: v2:base64(salt||nonce||ct||tag)
 
 
-def get_agents_dir(base_dir=DEFAULT_BASE_DIR):
+def get_agents_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the agents directory path."""
     return os.path.join(base_dir, "agents")
 
 
-def get_agent_dir(agent_id, base_dir=DEFAULT_BASE_DIR):
+def get_agent_dir(agent_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get a specific agent's directory path."""
     from avcpm_security import validate_agent_id
     validate_agent_id(agent_id)
     return os.path.join(get_agents_dir(base_dir), agent_id)
 
 
-def get_registry_path(base_dir=DEFAULT_BASE_DIR):
+def get_registry_path(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the registry.json file path."""
     return os.path.join(get_agents_dir(base_dir), "registry.json")
 
 
-def ensure_directories(base_dir=DEFAULT_BASE_DIR):
+def ensure_directories(base_dir=DEFAULT_BASE_DIR) -> None:
     """Ensure agents directory exists."""
     os.makedirs(get_agents_dir(base_dir), exist_ok=True)
 
@@ -272,7 +274,7 @@ def _decrypt_data_v1(encrypted_data: bytes, passphrase: str) -> bytes:
     return padded_data[:-pad_length]
 
 
-def encrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR):
+def encrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR) -> bytes:
     """
     Encrypt an agent's private key with a passphrase.
     
@@ -324,7 +326,7 @@ def encrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR):
     return {"success": True, "message": f"Private key for agent {agent_id} encrypted successfully"}
 
 
-def decrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR):
+def decrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR) -> bytes:
     """
     Decrypt an agent's private key using passphrase.
     
@@ -358,7 +360,7 @@ def decrypt_private_key(agent_id, passphrase, base_dir=DEFAULT_BASE_DIR):
     return serialization.load_pem_private_key(private_key_data, password=None)
 
 
-def is_key_encrypted(agent_id, base_dir=DEFAULT_BASE_DIR):
+def is_key_encrypted(agent_id, base_dir=DEFAULT_BASE_DIR) -> bool:
     """
     Check if an agent's private key is encrypted.
     
@@ -411,7 +413,7 @@ def _load_public_key(agent_id, base_dir=DEFAULT_BASE_DIR):
         return serialization.load_pem_public_key(f.read())
 
 
-def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None, encrypt=True):
+def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None, encrypt=True) -> Dict:
     """
     Create a new agent with RSA key pair.
     
@@ -509,7 +511,7 @@ def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None, encryp
     return agent_data
 
 
-def list_agents(base_dir=DEFAULT_BASE_DIR):
+def list_agents(base_dir=DEFAULT_BASE_DIR) -> List[Dict]:
     """
     List all registered agents.
     
@@ -523,7 +525,7 @@ def list_agents(base_dir=DEFAULT_BASE_DIR):
     return registry.get("agents", {})
 
 
-def get_agent(agent_id, base_dir=DEFAULT_BASE_DIR):
+def get_agent(agent_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get agent details by ID.
     
@@ -541,7 +543,7 @@ def get_agent(agent_id, base_dir=DEFAULT_BASE_DIR):
     return None
 
 
-def get_public_key(agent_id, base_dir=DEFAULT_BASE_DIR):
+def get_public_key(agent_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get the public key for an agent.
     
@@ -559,7 +561,7 @@ def get_public_key(agent_id, base_dir=DEFAULT_BASE_DIR):
     return None
 
 
-def sign_data(agent_id, data, base_dir=DEFAULT_BASE_DIR, passphrase=None):
+def sign_data(agent_id, data, base_dir=DEFAULT_BASE_DIR, passphrase=None) -> Dict:
     """
     Sign data with an agent's private key.
     
@@ -590,7 +592,7 @@ def sign_data(agent_id, data, base_dir=DEFAULT_BASE_DIR, passphrase=None):
     return signature
 
 
-def verify_signature(agent_id, data, signature, base_dir=DEFAULT_BASE_DIR):
+def verify_signature(agent_id, data, signature, base_dir=DEFAULT_BASE_DIR) -> bool:
     """
     Verify data signature with an agent's public key.
     
@@ -624,7 +626,7 @@ def verify_signature(agent_id, data, signature, base_dir=DEFAULT_BASE_DIR):
         return False
 
 
-def calculate_changes_hash(changes):
+def calculate_changes_hash(changes) -> str:
     """
     Calculate a hash of the changes for commit signing.
     
@@ -642,7 +644,7 @@ def calculate_changes_hash(changes):
     return hasher.hexdigest()
 
 
-def sign_commit(commit_id, timestamp, changes, agent_id, base_dir=DEFAULT_BASE_DIR, passphrase=None):
+def sign_commit(commit_id, timestamp, changes, agent_id, base_dir=DEFAULT_BASE_DIR, passphrase=None) -> Dict:
     """
     Sign commit metadata (commit_id + timestamp + changes hash).
     
@@ -674,7 +676,7 @@ def sign_commit(commit_id, timestamp, changes, agent_id, base_dir=DEFAULT_BASE_D
     }
 
 
-def verify_commit_signature(commit_id, timestamp, changes, agent_id, signature_hex, base_dir=DEFAULT_BASE_DIR):
+def verify_commit_signature(commit_id, timestamp, changes, agent_id, signature_hex, base_dir=DEFAULT_BASE_DIR) -> bool:
     """
     Verify a commit signature.
     
@@ -700,7 +702,7 @@ def verify_commit_signature(commit_id, timestamp, changes, agent_id, signature_h
     return verify_signature(agent_id, payload, signature, base_dir)
 
 
-def print_help():
+def print_help() -> None:
     """Print CLI help message."""
     print("AVCPM Agent Identity System")
     print("Usage:")

@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Dict, List, Optional, Tuple, Union, Any
 import os
 import sys
 import json
@@ -27,31 +29,31 @@ from avcpm_audit import audit_log, EVENT_MERGE
 
 DEFAULT_BASE_DIR = ".avcpm"
 
-def get_reviews_dir(base_dir=DEFAULT_BASE_DIR):
+def get_reviews_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the reviews directory path."""
     return os.path.join(base_dir, "reviews")
 
-def get_global_staging_dir(base_dir=DEFAULT_BASE_DIR):
+def get_global_staging_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the global staging directory path (legacy)."""
     return os.path.join(base_dir, "staging")
 
-def get_global_ledger_dir(base_dir=DEFAULT_BASE_DIR):
+def get_global_ledger_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the global ledger directory path (legacy)."""
     return os.path.join(base_dir, "ledger")
 
-def get_staging_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR):
+def get_staging_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the staging directory path for a branch."""
     if branch_name is None:
         branch_name = get_current_branch(base_dir)
     return get_branch_staging_dir(branch_name, base_dir)
 
-def get_ledger_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR):
+def get_ledger_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the ledger directory path for a branch."""
     if branch_name is None:
         branch_name = get_current_branch(base_dir)
     return get_branch_ledger_dir(branch_name, base_dir)
 
-def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BASE_DIR, auto_resolve=False, agent_id=None):
+def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BASE_DIR, auto_resolve=False, agent_id=None) -> Any:
     """
     Merge a commit into a target branch.
     

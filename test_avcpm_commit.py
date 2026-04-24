@@ -169,17 +169,23 @@ class TestChecksumVerification:
         with open(file2, "w") as f:
             f.write("Different content here")
 
-        # Small sleep to ensure different timestamp
-        import time
-        time.sleep(1)
-
-        commit_mod.commit(
-            task_id="TASK-012",
-            agent_id=env["agent_id"],
-            rationale="Second file",
-            files_to_commit=[file2],
-            base_dir=env["base_dir"],
-        )
+        # Mock datetime to ensure different timestamp without sleep
+        original_now = datetime
+        call_count = [0]
+        def mock_now():
+            call_count[0] += 1
+            # Return time with different second each call
+            base = original_now(2026, 4, 24, 12, 0, call_count[0])
+            return base.replace(microsecond=0)
+        
+        with patch.object(commit_mod, 'datetime', mock_now):
+            commit_mod.commit(
+                task_id="TASK-012",
+                agent_id=env["agent_id"],
+                rationale="Second file",
+                files_to_commit=[file2],
+                base_dir=env["base_dir"],
+            )
 
         ledger_dir = branch.get_branch_ledger_dir("main", env["base_dir"])
         commits = sorted([f for f in os.listdir(ledger_dir) if f.endswith(".json")])
@@ -324,20 +330,29 @@ class TestLedgerIntegrityChain:
             base_dir=env["base_dir"],
         )
 
-        import time
-        time.sleep(1)
-
+        # Mock datetime to ensure different timestamp without sleep
+        from datetime import datetime as dt_module
+        call_count = [0]
+        original_now = dt_module.now
+        def mock_now():
+            call_count[0] += 1
+            # Return time with different microsecond each call (not seconds, microseconds)
+            # This ensures different commit IDs while avoiding 1-second granularity issues
+            base = original_now().replace(microsecond=call_count[0] * 10000)
+            return base
+        
         # Modify file for second commit
         with open(env["test_file"], "w") as f:
             f.write("Updated content")
 
-        commit_mod.commit(
-            task_id="TASK-042-B",
-            agent_id=env["agent_id"],
-            rationale="Second commit in chain",
-            files_to_commit=[env["test_file"]],
-            base_dir=env["base_dir"],
-        )
+        with patch.object(commit_mod.datetime, 'now', mock_now):
+            commit_mod.commit(
+                task_id="TASK-042-B",
+                agent_id=env["agent_id"],
+                rationale="Second commit in chain",
+                files_to_commit=[env["test_file"]],
+                base_dir=env["base_dir"],
+            )
 
         ledger_dir = branch.get_branch_ledger_dir("main", env["base_dir"])
         commits = sorted([f for f in os.listdir(ledger_dir) if f.endswith(".json")])

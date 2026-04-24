@@ -31,7 +31,7 @@ BACKUP_STATUS_ACTIVE = "active"
 BACKUP_STATUS_RESTORED = "restored"
 
 
-def get_backups_dir(base_dir=DEFAULT_BASE_DIR):
+def get_backups_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the backups directory path."""
     return os.path.join(base_dir, "backups")
 
@@ -827,7 +827,7 @@ def _print_backup_restore_result(result: Dict):
         print(f"✗ Restore failed: {result.get('error', 'Unknown error')}")
 
 
-def main():
+def main() -> Any:
     """CLI interface for rollback and recovery commands."""
     if len(sys.argv) < 2:
         print("Usage: python avcpm_rollback.py <command> [args...]")

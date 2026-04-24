@@ -114,7 +114,7 @@ def get_base_dir(args) -> str:
 # COMMAND ROUTERS
 # ============================================================================
 
-def task_command(args):
+def task_command(args) -> Any:
     """Route task commands."""
     subcommand = args.subcommand
     base_dir = get_base_dir(args)
@@ -187,7 +187,7 @@ def task_command(args):
         sys.exit(1)
 
 
-def commit_command(args):
+def commit_command(args) -> Any:
     """Route commit commands."""
     base_dir = get_base_dir(args)
     
@@ -207,7 +207,7 @@ def commit_command(args):
         sys.exit(1)
 
 
-def merge_command(args):
+def merge_command(args) -> Any:
     """Route merge commands."""
     base_dir = get_base_dir(args)
     
@@ -223,7 +223,7 @@ def merge_command(args):
         sys.exit(1)
 
 
-def branch_command(args):
+def branch_command(args) -> Any:
     """Route branch commands."""
     subcommand = args.subcommand
     base_dir = get_base_dir(args)
@@ -297,7 +297,7 @@ def branch_command(args):
         sys.exit(1)
 
 
-def diff_command(args):
+def diff_command(args) -> Any:
     """Route diff commands."""
     subcommand = args.subcommand
     base_dir = get_base_dir(args)
@@ -383,7 +383,7 @@ def diff_command(args):
         sys.exit(1)
 
 
-def conflict_command(args):
+def conflict_command(args) -> Any:
     """Route conflict commands."""
     subcommand = args.subcommand
     base_dir = get_base_dir(args)
@@ -460,7 +460,7 @@ def conflict_command(args):
         sys.exit(1)
 
 
-def rollback_command(args):
+def rollback_command(args) -> Any:
     """Route rollback commands."""
     base_dir = get_base_dir(args)
     
@@ -576,7 +576,7 @@ def rollback_command(args):
         sys.exit(1)
 
 
-def wip_command(args):
+def wip_command(args) -> Any:
     """Route wip commands."""
     base_dir = get_base_dir(args)
     agent_id = args.agent if hasattr(args, 'agent') else os.environ.get("AVCPM_AGENT_ID", "unknown")
@@ -649,7 +649,7 @@ def wip_command(args):
         sys.exit(1)
 
 
-def agent_command(args):
+def agent_command(args) -> Any:
     """Route agent commands."""
     import getpass as _getpass
     import warnings as _warnings
@@ -732,7 +732,7 @@ def agent_command(args):
         sys.exit(1)
 
 
-def validate_command(args):
+def validate_command(args) -> bool:
     """Route validate commands."""
     base_dir = get_base_dir(args)
     staging_dir = os.path.join(base_dir, "staging")
@@ -758,7 +758,7 @@ def validate_command(args):
         sys.exit(1)
 
 
-def status_command(args):
+def status_command(args) -> Any:
     """Route status command to avcpm_status module with direct parameter passing."""
     base_dir = get_base_dir(args)
     try:
@@ -773,7 +773,7 @@ def status_command(args):
 # MAIN PARSER SETUP
 # ============================================================================
 
-def create_parser():
+def create_parser() -> Dict:
     """Create the main argument parser with all subcommands."""
     parser = argparse.ArgumentParser(
         prog="avcpm",
@@ -1107,7 +1107,7 @@ Examples:
     return parser
 
 
-def main():
+def main() -> Any:
     """Main entry point for the CLI."""
     parser = create_parser()
     args = parser.parse_args()

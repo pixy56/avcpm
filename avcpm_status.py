@@ -15,22 +15,22 @@ DEFAULT_BASE_DIR = ".avcpm"
 COLUMNS = ["todo", "in-progress", "review", "done"]
 
 
-def get_tasks_dir(base_dir=DEFAULT_BASE_DIR):
+def get_tasks_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the tasks directory path."""
     return os.path.join(base_dir, "tasks")
 
 
-def get_ledger_dir(base_dir=DEFAULT_BASE_DIR):
+def get_ledger_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the ledger directory path."""
     return os.path.join(base_dir, "ledger")
 
 
-def get_staging_dir(base_dir=DEFAULT_BASE_DIR):
+def get_staging_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the staging directory path."""
     return os.path.join(base_dir, "staging")
 
 
-def get_reviews_dir(base_dir=DEFAULT_BASE_DIR):
+def get_reviews_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the reviews directory path."""
     return os.path.join(base_dir, "reviews")
 

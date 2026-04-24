@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Dict, List, Optional, Tuple, Union, Any
 import os
 import sys
 import shutil
@@ -7,17 +9,17 @@ from datetime import datetime
 DEFAULT_BASE_DIR = ".avcpm"
 COLUMNS = ["todo", "in-progress", "review", "done"]
 
-def get_tasks_dir(base_dir=DEFAULT_BASE_DIR):
+def get_tasks_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the tasks directory path."""
     return os.path.join(base_dir, "tasks")
 
-def ensure_directories(base_dir=DEFAULT_BASE_DIR):
+def ensure_directories(base_dir=DEFAULT_BASE_DIR) -> None:
     """Ensure task directories exist."""
     tasks_dir = get_tasks_dir(base_dir)
     for col in COLUMNS:
         os.makedirs(os.path.join(tasks_dir, col), exist_ok=True)
 
-def get_task_path(task_id, base_dir=DEFAULT_BASE_DIR):
+def get_task_path(task_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Find the full path of a task file regardless of status."""
     tasks_dir = get_tasks_dir(base_dir)
     for col in COLUMNS:
@@ -26,7 +28,7 @@ def get_task_path(task_id, base_dir=DEFAULT_BASE_DIR):
             return path
     return None
 
-def get_task_status(task_id, base_dir=DEFAULT_BASE_DIR):
+def get_task_status(task_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the current status of a task."""
     tasks_dir = get_tasks_dir(base_dir)
     for col in COLUMNS:
@@ -35,7 +37,7 @@ def get_task_status(task_id, base_dir=DEFAULT_BASE_DIR):
             return col
     return None
 
-def load_task(task_id, base_dir=DEFAULT_BASE_DIR):
+def load_task(task_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Load task data from file."""
     path = get_task_path(task_id, base_dir)
     if path:
@@ -43,7 +45,7 @@ def load_task(task_id, base_dir=DEFAULT_BASE_DIR):
             return json.load(f)
     return None
 
-def save_task(task_id, task_data, status=None, base_dir=DEFAULT_BASE_DIR):
+def save_task(task_id, task_data, status=None, base_dir=DEFAULT_BASE_DIR) -> Any:
     """Save task data to file. If status not provided, use current status."""
     if status is None:
         status = get_task_status(task_id, base_dir)
@@ -56,7 +58,7 @@ def save_task(task_id, task_data, status=None, base_dir=DEFAULT_BASE_DIR):
         json.dump(task_data, f, indent=4)
     return True
 
-def get_all_tasks(base_dir=DEFAULT_BASE_DIR):
+def get_all_tasks(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get all tasks across all statuses."""
     tasks = []
     tasks_dir = get_tasks_dir(base_dir)
@@ -73,14 +75,14 @@ def get_all_tasks(base_dir=DEFAULT_BASE_DIR):
 # DEPENDENCY MANAGEMENT
 # ============================================================================
 
-def get_dependencies(task_id, base_dir=DEFAULT_BASE_DIR):
+def get_dependencies(task_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get list of task IDs that this task depends on."""
     task_data = load_task(task_id, base_dir)
     if task_data:
         return task_data.get("depends_on", [])
     return []
 
-def get_dependents(task_id, base_dir=DEFAULT_BASE_DIR):
+def get_dependents(task_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get list of task IDs that depend on this task."""
     dependents = []
     all_tasks = get_all_tasks(base_dir)
@@ -90,11 +92,11 @@ def get_dependents(task_id, base_dir=DEFAULT_BASE_DIR):
             dependents.append(task["id"])
     return dependents
 
-def is_dependency_complete(dep_task_id, base_dir=DEFAULT_BASE_DIR):
+def is_dependency_complete(dep_task_id, base_dir=DEFAULT_BASE_DIR) -> bool:
     """Check if a dependency task is complete (in 'done' status)."""
     return get_task_status(dep_task_id, base_dir) == "done"
 
-def get_blocked_by(task_id, base_dir=DEFAULT_BASE_DIR):
+def get_blocked_by(task_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get list of incomplete dependencies blocking this task."""
     deps = get_dependencies(task_id, base_dir)
     blocked_by = []
@@ -103,18 +105,18 @@ def get_blocked_by(task_id, base_dir=DEFAULT_BASE_DIR):
             blocked_by.append(dep)
     return blocked_by
 
-def is_blocked(task_id, base_dir=DEFAULT_BASE_DIR):
+def is_blocked(task_id, base_dir=DEFAULT_BASE_DIR) -> bool:
     """Check if task is blocked by incomplete dependencies."""
     return len(get_blocked_by(task_id, base_dir)) > 0
 
-def can_progress(task_id, base_dir=DEFAULT_BASE_DIR):
+def can_progress(task_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """Check if task can progress (all dependencies complete)."""
     deps = get_dependencies(task_id, base_dir)
     if not deps:
         return True
     return all(is_dependency_complete(dep, base_dir) for dep in deps)
 
-def get_blocked_tasks(base_dir=DEFAULT_BASE_DIR):
+def get_blocked_tasks(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get all tasks that are blocked by incomplete dependencies."""
     blocked = []
     all_tasks = get_all_tasks(base_dir)
@@ -143,13 +145,13 @@ def _detect_cycle_dfs(task_id, visited, recursion_stack, base_dir=DEFAULT_BASE_D
     recursion_stack.remove(task_id)
     return False
 
-def has_cycle(task_id, base_dir=DEFAULT_BASE_DIR):
+def has_cycle(task_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """Check if adding dependencies would create a cycle."""
     visited = set()
     recursion_stack = set()
     return _detect_cycle_dfs(task_id, visited, recursion_stack, base_dir)
 
-def would_create_cycle(task_id, new_dep_id, base_dir=DEFAULT_BASE_DIR):
+def would_create_cycle(task_id, new_dep_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """Check if adding new_dep_id as dependency would create a cycle."""
     # Temporarily add the dependency and check for cycle
     task_data = load_task(task_id, base_dir)
@@ -163,7 +165,7 @@ def would_create_cycle(task_id, new_dep_id, base_dir=DEFAULT_BASE_DIR):
     
     # Check if new_dep_id directly or indirectly depends on task_id
     # This is equivalent to checking if task_id is reachable from new_dep_id
-    def reaches(from_id, to_id, visited=None):
+    def reaches(from_id, to_id, visited=None) -> Any:
         if visited is None:
             visited = set()
         if from_id in visited:
@@ -179,7 +181,7 @@ def would_create_cycle(task_id, new_dep_id, base_dir=DEFAULT_BASE_DIR):
     
     return reaches(new_dep_id, task_id)
 
-def add_dependency(task_id, depends_on_task_id, base_dir=DEFAULT_BASE_DIR):
+def add_dependency(task_id, depends_on_task_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """Add a dependency to a task. Returns True if successful, raises exception on error."""
     if task_id == depends_on_task_id:
         raise ValueError(f"Task cannot depend on itself")
@@ -205,7 +207,7 @@ def add_dependency(task_id, depends_on_task_id, base_dir=DEFAULT_BASE_DIR):
         return True
     return False
 
-def remove_dependency(task_id, depends_on_task_id, base_dir=DEFAULT_BASE_DIR):
+def remove_dependency(task_id, depends_on_task_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """Remove a dependency from a task. Returns True if removed, False if not found."""
     task_data = load_task(task_id, base_dir)
     if not task_data:
@@ -254,12 +256,12 @@ def _build_dependency_tree(task_id, base_dir=DEFAULT_BASE_DIR, visited=None, pre
     
     return lines
 
-def show_dependency_graph(task_id, base_dir=DEFAULT_BASE_DIR):
+def show_dependency_graph(task_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """Show ASCII art tree of dependencies for a task."""
     lines = _build_dependency_tree(task_id, base_dir)
     return "\n".join(lines)
 
-def show_dependents_graph(task_id, base_dir=DEFAULT_BASE_DIR):
+def show_dependents_graph(task_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """Show tasks that depend on this one (reverse dependency view)."""
     task_data = load_task(task_id, base_dir)
     if not task_data:
@@ -283,7 +285,7 @@ def show_dependents_graph(task_id, base_dir=DEFAULT_BASE_DIR):
 # CLI INTERFACE
 # ============================================================================
 
-def print_help():
+def print_help() -> None:
     print("AVCPM Task Tooling")
     print("Usage:")
     print("  python avcpm_task.py create <id> <description> [assignee] [depends_on,...]")
@@ -295,7 +297,7 @@ def print_help():
     print("  python avcpm_task.py deps dependents <task_id>")
     print("  python avcpm_task.py blocked")
 
-def create_task(task_id, description, assignee="unassigned", depends_on=None, base_dir=DEFAULT_BASE_DIR):
+def create_task(task_id, description, assignee="unassigned", depends_on=None, base_dir=DEFAULT_BASE_DIR) -> Dict:
     tasks_dir = get_tasks_dir(base_dir)
     ensure_directories(base_dir)
     
@@ -341,7 +343,7 @@ def create_task(task_id, description, assignee="unassigned", depends_on=None, ba
     else:
         print(f"Task {task_id} created in 'todo'.")
 
-def move_task(task_id, new_status, force=False, base_dir=DEFAULT_BASE_DIR):
+def move_task(task_id, new_status, force=False, base_dir=DEFAULT_BASE_DIR) -> None:
     if new_status not in COLUMNS:
         raise ValueError(f"Invalid status '{new_status}'. Use {COLUMNS}")
     
@@ -398,7 +400,7 @@ def move_task(task_id, new_status, force=False, base_dir=DEFAULT_BASE_DIR):
     else:
         print(f"Task {task_id} moved to {new_status}.")
 
-def list_tasks(base_dir=DEFAULT_BASE_DIR):
+def list_tasks(base_dir=DEFAULT_BASE_DIR) -> List[Dict]:
     tasks_dir = get_tasks_dir(base_dir)
     
     for col in COLUMNS:
@@ -419,7 +421,7 @@ def list_tasks(base_dir=DEFAULT_BASE_DIR):
                 deps_info = f" (deps: {', '.join(deps)})" if deps else ""
                 print(f"[{data['id']}] {data['description']} ({data['assignee']}){deps_info}{status_marker}")
 
-def list_blocked(base_dir=DEFAULT_BASE_DIR):
+def list_blocked(base_dir=DEFAULT_BASE_DIR) -> List[Dict]:
     """List all tasks blocked by incomplete dependencies."""
     blocked = get_blocked_tasks(base_dir)
     if not blocked:
@@ -431,12 +433,12 @@ def list_blocked(base_dir=DEFAULT_BASE_DIR):
         print(f"[{task['id']}] {task['description']}")
         print(f"    Blocked by: {', '.join(task['blocked_by'])}")
 
-def deps_add(task_id, depends_on_id, base_dir=DEFAULT_BASE_DIR):
+def deps_add(task_id, depends_on_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """CLI handler for adding dependencies. Returns True on success, raises ValueError on error."""
     add_dependency(task_id, depends_on_id, base_dir)
     print(f"Added dependency: {task_id} now depends on {depends_on_id}")
 
-def deps_remove(task_id, depends_on_id, base_dir=DEFAULT_BASE_DIR):
+def deps_remove(task_id, depends_on_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """CLI handler for removing dependencies. Returns True on success, raises ValueError on error."""
     removed = remove_dependency(task_id, depends_on_id, base_dir)
     if removed:
@@ -444,11 +446,11 @@ def deps_remove(task_id, depends_on_id, base_dir=DEFAULT_BASE_DIR):
     else:
         raise ValueError(f"Task {task_id} did not depend on {depends_on_id}")
 
-def deps_show(task_id, base_dir=DEFAULT_BASE_DIR):
+def deps_show(task_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """CLI handler for showing dependency graph."""
     print(show_dependency_graph(task_id, base_dir))
 
-def deps_dependents(task_id, base_dir=DEFAULT_BASE_DIR):
+def deps_dependents(task_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """CLI handler for showing tasks that depend on this one."""
     print(show_dependents_graph(task_id, base_dir))
 

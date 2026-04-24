@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Dict, List, Optional, Tuple, Union, Any
 """
 AVCPM Agent Authentication System
 
@@ -23,28 +25,28 @@ DEFAULT_BASE_DIR = ".avcpm"
 SESSION_DURATION_MINUTES = 60  # Sessions expire after 60 minutes
 
 
-def get_sessions_dir(base_dir=DEFAULT_BASE_DIR):
+def get_sessions_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the agent sessions directory path."""
     return os.path.join(base_dir, "agent_sessions")
 
 
-def get_challenges_dir(base_dir=DEFAULT_BASE_DIR):
+def get_challenges_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the challenges directory path."""
     return os.path.join(base_dir, "agent_challenges")
 
 
-def ensure_auth_directories(base_dir=DEFAULT_BASE_DIR):
+def ensure_auth_directories(base_dir=DEFAULT_BASE_DIR) -> None:
     """Ensure authentication directories exist."""
     os.makedirs(get_sessions_dir(base_dir), exist_ok=True)
     os.makedirs(get_challenges_dir(base_dir), exist_ok=True)
 
 
-def generate_challenge():
+def generate_challenge() -> str:
     """Generate a cryptographically secure random challenge."""
     return secrets.token_hex(32)  # 64 hex characters = 256 bits
 
 
-def create_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
+def create_challenge(agent_id, base_dir=DEFAULT_BASE_DIR) -> Dict:
     """
     Create a new challenge for an agent to sign.
     
@@ -76,7 +78,7 @@ def create_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
     return challenge
 
 
-def get_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
+def get_challenge(agent_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get the current challenge for an agent.
     
@@ -108,7 +110,7 @@ def get_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
     return challenge_data["challenge"]
 
 
-def clear_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
+def clear_challenge(agent_id, base_dir=DEFAULT_BASE_DIR) -> None:
     """Clear the challenge for an agent (used after successful auth)."""
     from avcpm_security import validate_agent_id
     validate_agent_id(agent_id)
@@ -118,7 +120,7 @@ def clear_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
         os.remove(challenge_file)
 
 
-def sign_challenge_response(challenge, agent_id, base_dir=DEFAULT_BASE_DIR):
+def sign_challenge_response(challenge, agent_id, base_dir=DEFAULT_BASE_DIR) -> Dict:
     """
     Sign a challenge response using the agent's private key.
     
@@ -138,7 +140,7 @@ def sign_challenge_response(challenge, agent_id, base_dir=DEFAULT_BASE_DIR):
     return signature.hex()
 
 
-def verify_challenge_response(challenge, agent_id, signature_hex, base_dir=DEFAULT_BASE_DIR):
+def verify_challenge_response(challenge, agent_id, signature_hex, base_dir=DEFAULT_BASE_DIR) -> bool:
     """
     Verify a challenge response signature.
     
@@ -163,7 +165,7 @@ def verify_challenge_response(challenge, agent_id, signature_hex, base_dir=DEFAU
     return verify_signature(agent_id, payload, signature, base_dir)
 
 
-def create_session(agent_id, base_dir=DEFAULT_BASE_DIR):
+def create_session(agent_id, base_dir=DEFAULT_BASE_DIR) -> Dict:
     """
     Create an authenticated session for an agent.
     
@@ -198,7 +200,7 @@ def create_session(agent_id, base_dir=DEFAULT_BASE_DIR):
     return session_data
 
 
-def get_session(agent_id, base_dir=DEFAULT_BASE_DIR):
+def get_session(agent_id, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get the current session for an agent.
     
@@ -230,7 +232,7 @@ def get_session(agent_id, base_dir=DEFAULT_BASE_DIR):
     return session_data
 
 
-def validate_session(agent_id, session_token, base_dir=DEFAULT_BASE_DIR):
+def validate_session(agent_id, session_token, base_dir=DEFAULT_BASE_DIR) -> bool:
     """
     Validate a session token for an agent.
     
@@ -261,7 +263,7 @@ def validate_session(agent_id, session_token, base_dir=DEFAULT_BASE_DIR):
     return True
 
 
-def delete_session(agent_id, base_dir=DEFAULT_BASE_DIR):
+def delete_session(agent_id, base_dir=DEFAULT_BASE_DIR) -> None:
     """Delete an agent's session (logout)."""
     from avcpm_security import validate_agent_id
     validate_agent_id(agent_id)
@@ -273,7 +275,7 @@ def delete_session(agent_id, base_dir=DEFAULT_BASE_DIR):
     return False
 
 
-def authenticate_agent(agent_id, proof, base_dir=DEFAULT_BASE_DIR):
+def authenticate_agent(agent_id, proof, base_dir=DEFAULT_BASE_DIR) -> Any:
     """
     Authenticate an agent using challenge-response.
     
@@ -318,7 +320,7 @@ def authenticate_agent(agent_id, proof, base_dir=DEFAULT_BASE_DIR):
     return True, session
 
 
-def require_auth(agent_id, base_dir=DEFAULT_BASE_DIR):
+def require_auth(agent_id, base_dir=DEFAULT_BASE_DIR) -> Any:
     """
     Decorator helper to require authentication for an operation.
     Checks if the agent has a valid session.
@@ -339,12 +341,12 @@ def require_auth(agent_id, base_dir=DEFAULT_BASE_DIR):
     return True, None
 
 
-def get_session_token_from_env():
+def get_session_token_from_env() -> Optional[Dict]:
     """Get session token from environment variable."""
     return os.environ.get("AVCPM_SESSION_TOKEN")
 
 
-def get_authenticated_agent_from_env(base_dir=DEFAULT_BASE_DIR):
+def get_authenticated_agent_from_env(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """
     Get authenticated agent from environment.
     
@@ -364,7 +366,7 @@ def get_authenticated_agent_from_env(base_dir=DEFAULT_BASE_DIR):
     return None, None
 
 
-def list_active_sessions(base_dir=DEFAULT_BASE_DIR):
+def list_active_sessions(base_dir=DEFAULT_BASE_DIR) -> List[Dict]:
     """
     List all active sessions.
     
@@ -405,7 +407,7 @@ def list_active_sessions(base_dir=DEFAULT_BASE_DIR):
     return sessions
 
 
-def cleanup_expired_sessions(base_dir=DEFAULT_BASE_DIR):
+def cleanup_expired_sessions(base_dir=DEFAULT_BASE_DIR) -> Any:
     """Clean up all expired sessions and challenges."""
     ensure_auth_directories(base_dir)
     
@@ -456,7 +458,7 @@ def cleanup_expired_sessions(base_dir=DEFAULT_BASE_DIR):
                     continue
 
 
-def print_help():
+def print_help() -> None:
     """Print CLI help message."""
     print("AVCPM Agent Authentication System")
     print("Usage:")

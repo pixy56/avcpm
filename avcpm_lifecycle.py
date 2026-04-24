@@ -164,7 +164,7 @@ def get_task_commits_dir(base_dir=DEFAULT_BASE_DIR) -> str:
     return os.path.join(base_dir, "task_commits")
 
 
-def ensure_task_commits_dir(base_dir=DEFAULT_BASE_DIR):
+def ensure_task_commits_dir(base_dir=DEFAULT_BASE_DIR) -> None:
     """Ensure task commits directory exists."""
     os.makedirs(get_task_commits_dir(base_dir), exist_ok=True)
 
@@ -716,7 +716,7 @@ def lifecycle_hook_enabled(hook_name: str, task_type: str = "default",
     return task_config.get("auto_transitions", {}).get(hook_name, True)
 
 
-def print_help():
+def print_help() -> None:
     """Print CLI help message."""
     print("AVCPM Task Lifecycle Management")
     print("Usage:")

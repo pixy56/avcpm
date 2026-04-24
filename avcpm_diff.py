@@ -588,7 +588,7 @@ def _print_diff_stats(stats: Dict):
     print(f"Deletions: {stats.get('deletions', 0)}")
 
 
-def main():
+def main() -> Any:
     """CLI interface for diff and history commands."""
     if len(sys.argv) < 2:
         print("Usage: python avcpm_diff.py <command> [args...]")

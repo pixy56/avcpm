@@ -109,7 +109,7 @@ def _get_symlink_target(filepath: str) -> str:
     return os.readlink(filepath)
 
 
-def safe_open_nofollow(filepath: str, mode: str = "rb"):
+def safe_open_nofollow(filepath: str, mode: str = "rb") -> bytes:
     """
     Open a file safely, rejecting symlinks via O_NOFOLLOW on Unix.
     

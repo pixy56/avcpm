@@ -327,7 +327,7 @@ def print_report(report: ValidationReport) -> None:
     print("=" * 70)
 
 
-def main():
+def main() -> Any:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
         description="Validate SHA256 checksums of files in .avcpm/staging against ledger entries."

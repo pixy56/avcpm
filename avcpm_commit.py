@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Dict, List, Optional, Tuple, Union, Any
 import os
 import sys
 import json
@@ -31,38 +33,38 @@ from avcpm_audit import audit_log, EVENT_COMMIT
 
 DEFAULT_BASE_DIR = ".avcpm"
 
-def get_global_ledger_dir(base_dir=DEFAULT_BASE_DIR):
+def get_global_ledger_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the global ledger directory path (legacy)."""
     return os.path.join(base_dir, "ledger")
 
-def get_global_staging_dir(base_dir=DEFAULT_BASE_DIR):
+def get_global_staging_dir(base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the global staging directory path (legacy)."""
     return os.path.join(base_dir, "staging")
 
-def get_ledger_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR):
+def get_ledger_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the ledger directory path for a branch."""
     if branch_name is None:
         branch_name = get_current_branch(base_dir)
     return get_branch_ledger_dir(branch_name, base_dir)
 
-def get_staging_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR):
+def get_staging_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR) -> Optional[Dict]:
     """Get the staging directory path for a branch."""
     if branch_name is None:
         branch_name = get_current_branch(base_dir)
     return get_branch_staging_dir(branch_name, base_dir)
 
-def ensure_directories(branch_name=None, base_dir=DEFAULT_BASE_DIR):
+def ensure_directories(branch_name=None, base_dir=DEFAULT_BASE_DIR) -> None:
     """Ensure ledger and staging directories exist for a branch."""
     _ensure_main_branch(base_dir)
     os.makedirs(get_ledger_dir(branch_name, base_dir), exist_ok=True)
     os.makedirs(get_staging_dir(branch_name, base_dir), exist_ok=True)
 
-def calculate_checksum(filepath, base_dir=DEFAULT_BASE_DIR):
+def calculate_checksum(filepath, base_dir=DEFAULT_BASE_DIR) -> str:
     """Calculate SHA256 checksum of a file using safe read."""
     content = safe_read(filepath, base_dir)
     return hashlib.sha256(content).hexdigest()
 
-def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base_dir=DEFAULT_BASE_DIR, skip_validation=False):
+def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base_dir=DEFAULT_BASE_DIR, skip_validation=False) -> Any:
     """
     Commit files to a branch.
     
