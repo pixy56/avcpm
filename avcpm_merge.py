@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import shutil
 
 from avcpm_agent import verify_commit_signature
 from avcpm_branch import (
@@ -22,6 +23,7 @@ from avcpm_lifecycle import (
     init_lifecycle_config
 )
 from avcpm_security import sanitize_path
+from avcpm_audit import audit_log, EVENT_MERGE
 
 DEFAULT_BASE_DIR = ".avcpm"
 
@@ -81,35 +83,35 @@ def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BA
         conflict_result = detect_conflicts(source_branch, target_branch, base_dir)
         
         if conflict_result["conflict_count"] > 0:
-            print(f"\nError: {conflict_result['conflict_count']} conflict(s) detected. Merge aborted.")
-            print("\nConflicts:")
+            error_msg = (
+                f"{conflict_result['conflict_count']} conflict(s) detected between "
+                f"'{source_branch}' and '{target_branch}'. Merge aborted.\n"
+            )
             for conflict in conflict_result["conflicts"]:
-                print(f"  - {conflict['file']} ({conflict['conflict_type']})")
-                print(f"    Conflict ID: {conflict['conflict_id']}")
-            print(f"\nRun 'python avcpm_conflict.py list' to see all open conflicts.")
-            print("Run 'python avcpm_conflict.py resolve <conflict_id> --strategy <ours|theirs|union>' to resolve.")
-            sys.exit(1)
+                error_msg += f"  - {conflict['file']} ({conflict['conflict_type']})\n"
+            error_msg += (
+                f"\nRun 'python avcpm_conflict.py list' to see all open conflicts.\n"
+                f"Run 'python avcpm_conflict.py resolve <conflict_id> --strategy <ours|theirs|union>' to resolve."
+            )
+            raise ValueError(error_msg)
         else:
             print("No conflicts detected. Proceeding with merge...")
     
     # 1. Validate Approval
     review_path = os.path.join(reviews_dir, f"{commit_id}.review")
     if not os.path.exists(review_path):
-        print(f"Error: No review file found for commit {commit_id} at {review_path}")
-        sys.exit(1)
+        raise ValueError(f"No review file found for commit {commit_id} at {review_path}")
     
     with open(review_path, "r") as f:
         content = f.read()
     
     if "APPROVED" not in content:
-        print(f"Error: Commit {commit_id} is not APPROVED. Merge aborted.")
-        sys.exit(1)
+        raise ValueError(f"Commit {commit_id} is not APPROVED. Merge aborted.")
     
     # 2. Identify files in the commit
     ledger_path = os.path.join(ledger_dir, f"{commit_id}.json")
     if not os.path.exists(ledger_path):
-        print(f"Error: Commit {commit_id} not found in ledger.")
-        sys.exit(1)
+        raise ValueError(f"Commit {commit_id} not found in ledger.")
     
     with open(ledger_path, "r") as f:
         commit_data = json.load(f)
@@ -121,17 +123,14 @@ def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BA
     changes = commit_data.get("changes", [])
     
     if not signature:
-        print(f"Error: Commit {commit_id} has no signature. Merge aborted.")
-        sys.exit(1)
+        raise ValueError(f"Commit {commit_id} has no signature. Merge aborted.")
     
     if not agent_id:
-        print(f"Error: Commit {commit_id} has no agent_id. Merge aborted.")
-        sys.exit(1)
+        raise ValueError(f"Commit {commit_id} has no agent_id. Merge aborted.")
     
     is_valid = verify_commit_signature(commit_id, timestamp, changes, agent_id, signature, base_dir)
     if not is_valid:
-        print(f"Error: Commit {commit_id} has invalid signature. Merge aborted.")
-        sys.exit(1)
+        raise ValueError(f"Commit {commit_id} has invalid signature. Merge aborted.")
     
     print(f"Signature verified for commit {commit_id} (agent: {agent_id})")
     
@@ -144,8 +143,7 @@ def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BA
             try:
                 dest_file = sanitize_path(dest_file, os.getcwd())
             except ValueError as e:
-                print(f"Security Error: Path traversal detected for {dest_file}: {e}")
-                sys.exit(1)
+                raise ValueError(f"Security Error: Path traversal detected for {dest_file}: {e}")
             # Simple copy/overwrite for Phase 1
             shutil.copy2(staging_file, dest_file)
             print(f"Merged: {dest_file}")
@@ -163,6 +161,13 @@ def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BA
             print(f"Marked branch '{source_branch}' as merged")
     
     print(f"Successfully merged commit {commit_id} into branch '{target_branch}'.")
+    
+    audit_log(EVENT_MERGE, merging_agent_id or "unknown", {
+        "commit_id": commit_id,
+        "source_branch": source_branch,
+        "target_branch": target_branch,
+        "files": [c["file"] for c in commit_data.get("changes", [])]
+    })
     
     # Trigger lifecycle hook for auto-transition
     task_id = commit_data.get("task_id")
@@ -184,4 +189,8 @@ if __name__ == "__main__":
     commit_id = sys.argv[1]
     auto_resolve = "--auto-resolve" in sys.argv
     
-    merge(commit_id, auto_resolve=auto_resolve)
+    try:
+        merge(commit_id, auto_resolve=auto_resolve)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)

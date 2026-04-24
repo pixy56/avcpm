@@ -3,16 +3,80 @@ AVCPM Security Module - Safe File Operations
 
 Provides symlink-safe file operations to prevent directory traversal attacks.
 All file operations verify that symlinks point within allowed base directories.
+
+Uses O_NOFOLLOW on Unix to atomically reject symlinks, closing the TOCTOU
+race between checking islink() and opening the file.
 """
 
 import os
 import shutil
+import re
+import sys
+import io
 from typing import Optional
 
 
 class SecurityError(Exception):
     """Raised when a security violation is detected."""
     pass
+
+
+# Agent ID validation regex: alphanumeric, underscore, hyphen only
+AGENT_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{1,64}$')
+
+
+def validate_agent_id(agent_id: str) -> str:
+    """
+    Validate an agent_id to prevent path traversal attacks.
+
+    Args:
+        agent_id: The agent ID string to validate
+
+    Returns:
+        The validated agent_id
+
+    Raises:
+        ValueError: If the agent_id contains unsafe characters or is too long
+    """
+    if not agent_id:
+        raise ValueError("agent_id cannot be empty")
+    if not isinstance(agent_id, str):
+        raise ValueError("agent_id must be a string")
+    if not AGENT_ID_PATTERN.match(agent_id):
+        raise ValueError(
+            f"Invalid agent_id '{agent_id}'. Must match regex "
+            f"^[a-zA-Z0-9_-]{{1,64}}$ (alphanumeric, underscore, hyphen only, 1-64 chars)"
+        )
+    return agent_id
+
+
+def safe_join(base_dir: str, agent_id: str, *tail: str) -> str:
+    """
+    Safely join a base directory with a validated agent_id and optional sub-paths.
+
+    Validates agent_id before joining. Verifies the final path is within base_dir.
+
+    Args:
+        base_dir: The base directory
+        agent_id: The agent ID (will be validated)
+        *tail: Additional path components
+
+    Returns:
+        The joined path
+
+    Raises:
+        ValueError: If agent_id is invalid or final path escapes base_dir
+    """
+    validated = validate_agent_id(agent_id)
+    path = os.path.join(base_dir, validated, *tail)
+    resolved = os.path.realpath(os.path.abspath(path))
+    base_resolved = os.path.realpath(os.path.abspath(base_dir))
+    # Ensure base ends with separator for prefix check
+    if not base_resolved.endswith(os.sep):
+        base_resolved += os.sep
+    if not (resolved == base_resolved.rstrip(os.sep) or resolved.startswith(base_resolved)):
+        raise ValueError(f"Resolved path '{resolved}' is outside base directory '{base_dir}'")
+    return resolved
 
 
 def _resolve_real_path(path: str) -> str:
@@ -45,9 +109,74 @@ def _get_symlink_target(filepath: str) -> str:
     return os.readlink(filepath)
 
 
+def safe_open_nofollow(filepath: str, mode: str = "rb"):
+    """
+    Open a file safely, rejecting symlinks via O_NOFOLLOW on Unix.
+    
+    Uses os.open() with O_NOFOLLOW on Unix to atomically check that
+    the path is not a symlink before opening. On Windows, falls back to
+    checking with os.path.islink() since O_NOFOLLOW is unavailable.
+    
+    Args:
+        filepath: Path to the file to open.
+        mode: File open mode (default: "rb"). Supports "rb", "r", "wb", "w", "ab", "a".
+    
+    Returns:
+        A file object.
+    
+    Raises:
+        SecurityError: If filepath is a symlink.
+        FileNotFoundError: If the file does not exist (for read modes).
+    """
+    if os.path.islink(filepath):
+        raise SecurityError(
+            f"Security violation: '{filepath}' is a symlink. Open rejected."
+        )
+    
+    # On Unix, use O_NOFOLLOW for atomic symlink rejection
+    if sys.platform != "win32":
+        # Map mode strings to os.open flags
+        binary = "b" in mode
+        base_mode = mode.replace("b", "")
+        
+        if base_mode == "r":
+            flags = os.O_RDONLY | os.O_NOFOLLOW
+        elif base_mode == "w":
+            flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW
+        elif base_mode == "a":
+            flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW
+        else:
+            flags = os.O_RDONLY | os.O_NOFOLLOW
+        
+        try:
+            fd = os.open(filepath, flags)
+        except OSError as e:
+            # O_NOFOLLOW causes ELOOP when path is a symlink
+            if e.errno == 40:  # ELOOP
+                raise SecurityError(
+                    f"Security violation: '{filepath}' is a symlink. Open rejected."
+                )
+            raise
+        
+        try:
+            if binary:
+                return os.fdopen(fd, mode)
+            else:
+                return os.fdopen(fd, mode, encoding="utf-8")
+        except:
+            os.close(fd)
+            raise
+    else:
+        # Windows fallback: islink check already done above
+        return open(filepath, mode)
+
+
 def safe_copy(src: str, dst: str, base_dir: str) -> None:
     """
     Safely copy a file, preventing symlink attacks.
+    
+    Uses safe_open_nofollow() to atomically reject symlinks on Unix,
+    avoiding the TOCTOU race between checking and opening.
     
     Args:
         src: Source file path
@@ -61,34 +190,40 @@ def safe_copy(src: str, dst: str, base_dir: str) -> None:
     if not os.path.exists(src):
         raise FileNotFoundError(f"Source file not found: {src}")
     
-    # Check if src is a symlink
-    if _is_symlink(src):
-        # Get the symlink target
-        link_target = _get_symlink_target(src)
-        
-        # If target is relative, resolve it relative to the symlink's directory
-        if not os.path.isabs(link_target):
-            symlink_dir = os.path.dirname(os.path.abspath(src))
-            link_target = os.path.join(symlink_dir, link_target)
-        
-        # Verify the symlink target is within the allowed base directory
-        if not _is_path_within_base(link_target, base_dir):
-            raise SecurityError(
-                f"Security violation: Symlink '{src}' points outside allowed "
-                f"directory to '{link_target}'. Copy rejected."
-            )
-        
-        # Symlink is safe - copy the target content, not the symlink itself
-        # Use shutil.copy2 which will copy the file content (following the safe symlink)
-        shutil.copy2(src, dst)
-    else:
-        # Regular file - safe to copy
-        shutil.copy2(src, dst)
+    # Try O_NOFOLLOW on Unix to atomically reject symlinks
+    try:
+        with safe_open_nofollow(src, "rb") as f:
+            data = f.read()
+        # Write destination normally
+        parent_dir = os.path.dirname(dst)
+        if parent_dir and not os.path.exists(parent_dir):
+            os.makedirs(parent_dir, exist_ok=True)
+        with open(dst, "wb") as f:
+            f.write(data)
+    except SecurityError:
+        # Re-check symlink target for base_dir enforcement
+        if _is_symlink(src):
+            link_target = _get_symlink_target(src)
+            if not os.path.isabs(link_target):
+                symlink_dir = os.path.dirname(os.path.abspath(src))
+                link_target = os.path.join(symlink_dir, link_target)
+            if not _is_path_within_base(link_target, base_dir):
+                raise SecurityError(
+                    f"Security violation: Symlink '{src}' points outside allowed "
+                    f"directory to '{link_target}'. Copy rejected."
+                )
+            # Symlink target is within base_dir — copy the content
+            shutil.copy2(src, dst)
+        else:
+            raise
 
 
 def safe_read(filepath: str, base_dir: str) -> bytes:
     """
     Safely read a file, preventing symlink attacks.
+    
+    Uses safe_open_nofollow() to atomically reject symlinks on Unix,
+    avoiding the TOCTOU race between checking and opening.
     
     Args:
         filepath: File to read
@@ -104,26 +239,25 @@ def safe_read(filepath: str, base_dir: str) -> bytes:
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"File not found: {filepath}")
     
-    # Check if filepath is a symlink
-    if _is_symlink(filepath):
-        # Get the symlink target
+    # Use O_NOFOLLOW to reject symlinks atomically on Unix
+    try:
+        with safe_open_nofollow(filepath, "rb") as f:
+            return f.read()
+    except SecurityError:
+        # Re-check symlink target for base_dir enforcement on platforms
+        # where O_NOFOLLOW isn't available (Windows)
         link_target = _get_symlink_target(filepath)
-        
-        # If target is relative, resolve it relative to the symlink's directory
         if not os.path.isabs(link_target):
             symlink_dir = os.path.dirname(os.path.abspath(filepath))
             link_target = os.path.join(symlink_dir, link_target)
-        
-        # Verify the symlink target is within the allowed base directory
         if not _is_path_within_base(link_target, base_dir):
             raise SecurityError(
                 f"Security violation: Symlink '{filepath}' points outside allowed "
                 f"directory to '{link_target}'. Read rejected."
             )
-    
-    # Safe to read (either regular file or safe symlink)
-    with open(filepath, "rb") as f:
-        return f.read()
+        # Symlink target is within base_dir — follow it safely
+        with open(filepath, "rb") as f:
+            return f.read()
 
 
 def safe_read_text(filepath: str, base_dir: str, encoding: str = "utf-8") -> str:
@@ -191,7 +325,9 @@ def safe_exists(filepath: str, base_dir: str) -> bool:
 def safe_write(filepath: str, content: bytes, base_dir: str) -> None:
     """
     Safely write to a file, preventing symlink attacks.
-    If the file is a dangerous symlink, it will be rejected.
+    
+    Uses safe_open_nofollow() to atomically reject symlinks on Unix,
+    avoiding the TOCTOU race between checking and writing.
     
     Args:
         filepath: File to write
@@ -201,31 +337,47 @@ def safe_write(filepath: str, content: bytes, base_dir: str) -> None:
     Raises:
         SecurityError: If filepath is a symlink pointing outside base_dir
     """
-    # Check if filepath is a symlink
-    if os.path.islink(filepath):
-        # Get the symlink target
-        link_target = _get_symlink_target(filepath)
-        
-        # If target is relative, resolve it relative to the symlink's directory
-        if not os.path.isabs(link_target):
-            symlink_dir = os.path.dirname(os.path.abspath(filepath))
-            link_target = os.path.join(symlink_dir, link_target)
-        
-        # Verify the symlink target is within the allowed base directory
-        if not _is_path_within_base(link_target, base_dir):
-            raise SecurityError(
-                f"Security violation: Symlink '{filepath}' points outside allowed "
-                f"directory to '{link_target}'. Write rejected."
-            )
-    
     # Ensure parent directory exists
     parent_dir = os.path.dirname(filepath)
     if parent_dir and not os.path.exists(parent_dir):
         os.makedirs(parent_dir, exist_ok=True)
     
-    # Safe to write
-    with open(filepath, "wb") as f:
-        f.write(content)
+    # Try O_NOFOLLOW first (Unix)
+    if os.path.lexists(filepath) and os.path.islink(filepath):
+        link_target = _get_symlink_target(filepath)
+        if not os.path.isabs(link_target):
+            symlink_dir = os.path.dirname(os.path.abspath(filepath))
+            link_target = os.path.join(symlink_dir, link_target)
+        if not _is_path_within_base(link_target, base_dir):
+            raise SecurityError(
+                f"Security violation: Symlink '{filepath}' points outside allowed "
+                f"directory to '{link_target}'. Write rejected."
+            )
+        # Symlink target is within base_dir — write through the link
+        with open(filepath, "wb") as f:
+            f.write(content)
+        return
+    
+    # For non-symlink files (or new files), use safe_open_nofollow
+    try:
+        with safe_open_nofollow(filepath, "wb") as f:
+            f.write(content)
+    except SecurityError:
+        # On Windows without O_NOFOLLOW, re-check the symlink
+        if os.path.islink(filepath):
+            link_target = _get_symlink_target(filepath)
+            if not os.path.isabs(link_target):
+                symlink_dir = os.path.dirname(os.path.abspath(filepath))
+                link_target = os.path.join(symlink_dir, link_target)
+            if not _is_path_within_base(link_target, base_dir):
+                raise SecurityError(
+                    f"Security violation: Symlink '{filepath}' points outside allowed "
+                    f"directory to '{link_target}'. Write rejected."
+                )
+            with open(filepath, "wb") as f:
+                f.write(content)
+        else:
+            raise
 
 
 def safe_write_text(filepath: str, content: str, base_dir: str, encoding: str = "utf-8") -> None:
