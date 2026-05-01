@@ -35,3 +35,6 @@ Last linted: 2026-05-01
 | [[entities/obsidian-md]] | Product/Tool |
 | [[entities/letta]] | Product/Tool |
 | [[entities/cognee]] | Product/Tool |
+
+## Obsidian Setup
+- [[OBSIDIAN_SETUP]] — Quick start guide for browsing the workspace in Obsidian

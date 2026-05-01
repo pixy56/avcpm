@@ -23,6 +23,17 @@ Things like:
 - `~/.openclaw/tools-venv/bin/python3 tools/search-vault.py index` — Reindex vault
 - `python3 tools/mcp-wiki-ingest.py <file>` — Ingest source into wiki
 - `python3 tools/wiki-lint.py` — Check for broken links, orphans, stale pages
+- `python3 tools/mcp-server.py` — MCP server for external agent access (stdio)
+
+### MCP Configuration
+- Config: `~/.openclaw/mcp-config.json`
+- Server: `openclaw-wiki` — tools: wiki_search, wiki_read, wiki_write, wiki_ingest, wiki_lint, wiki_index, wiki_log_append
+
+### Obsidian Sync
+- Vault path: `~/.openclaw/workspace`
+- Open Obsidian → "Open folder as vault" → select workspace directory
+- All wiki, memory, and research files are immediately browsable
+- See `wiki/OBSIDIAN_SETUP.md` for detailed setup and recommended plugins
 
 ### Cameras
 
