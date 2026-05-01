@@ -18,3 +18,8 @@ based on parallel agent research on Karpathy llm-wiki.md, Obsidian.md,
 and general knowledge base landscape.
 Sources: [[sources/karpathy-llm-wiki]] (pending), [[sources/obsidian-md]] (pending)
 
+
+## [2026-05-01] auto | MCP server tested: read, write, search, lint all working. Created [[concepts/mcp-protocol]].
+
+## [2026-05-01] ingest | test-source
+Created [[sources/test-source]]. Raw: `test-source.txt`
