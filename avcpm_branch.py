@@ -60,9 +60,12 @@ def _load_config(base_dir=DEFAULT_BASE_DIR):
     return {}
 
 
+from avcpm_security import protect_avcpm_directory, SecurityError, safe_makedirs
+
 def _save_config(config, base_dir=DEFAULT_BASE_DIR):
-    """Save the AVCPM config."""
-    os.makedirs(base_dir, exist_ok=True)
+    """Save the AVCPM config with symlink protection."""
+    protect_avcpm_directory(base_dir)
+    safe_makedirs(base_dir, base_dir, exist_ok=True)
     config_path = get_config_path(base_dir)
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
@@ -75,13 +78,14 @@ def _generate_branch_id():
 
 def _ensure_main_branch(base_dir=DEFAULT_BASE_DIR):
     """Ensure the main branch exists, creating it if necessary."""
+    protect_avcpm_directory(base_dir)
     branches_dir = get_branches_dir(base_dir)
     main_branch_dir = get_branch_dir("main", base_dir)
     
     if not os.path.exists(main_branch_dir):
-        os.makedirs(main_branch_dir, exist_ok=True)
-        os.makedirs(get_branch_staging_dir("main", base_dir), exist_ok=True)
-        os.makedirs(get_branch_ledger_dir("main", base_dir), exist_ok=True)
+        safe_makedirs(main_branch_dir, base_dir, exist_ok=True)
+        safe_makedirs(get_branch_staging_dir("main", base_dir), base_dir, exist_ok=True)
+        safe_makedirs(get_branch_ledger_dir("main", base_dir), base_dir, exist_ok=True)
         
         # Create main branch metadata
         branch_metadata = {
@@ -179,10 +183,11 @@ def create_branch(name, parent_branch="main", task_id=None, agent_id=None, base_
             latest_commit_file = commits[-1]
             parent_commit = latest_commit_file.replace(".json", "")
     
-    # Create branch directory structure
-    os.makedirs(branch_dir, exist_ok=True)
-    os.makedirs(get_branch_staging_dir(name, base_dir), exist_ok=True)
-    os.makedirs(get_branch_ledger_dir(name, base_dir), exist_ok=True)
+    # Create branch directory structure with symlink protection
+    protect_avcpm_directory(base_dir)
+    safe_makedirs(branch_dir, base_dir, exist_ok=True)
+    safe_makedirs(get_branch_staging_dir(name, base_dir), base_dir, exist_ok=True)
+    safe_makedirs(get_branch_ledger_dir(name, base_dir), base_dir, exist_ok=True)
     
     # Create branch metadata
     branch_metadata = {

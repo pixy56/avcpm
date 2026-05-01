@@ -22,6 +22,10 @@ from avcpm_lifecycle import (
     init_lifecycle_config
 )
 from avcpm_security import sanitize_path
+from avcpm_ledger_integrity import (
+    verify_ledger_integrity,
+    check_integrity_warning
+)
 
 DEFAULT_BASE_DIR = ".avcpm"
 
@@ -74,6 +78,23 @@ def merge(commit_id, source_branch=None, target_branch=None, base_dir=DEFAULT_BA
     ledger_dir = get_ledger_dir(source_branch, base_dir)
     
     print(f"Merging commit {commit_id} from branch '{source_branch}' into '{target_branch}'")
+    
+    # Verify source branch ledger integrity before merging
+    source_integrity = verify_ledger_integrity(source_branch, base_dir)
+    if not source_integrity.success:
+        warning = check_integrity_warning(source_branch, base_dir)
+        print(f"SECURITY ERROR: {warning}")
+        print("Merge aborted due to ledger integrity violation.")
+        sys.exit(1)
+    
+    # Verify target branch ledger integrity before merging
+    if source_branch != target_branch:
+        target_integrity = verify_ledger_integrity(target_branch, base_dir)
+        if not target_integrity.success:
+            warning = check_integrity_warning(target_branch, base_dir)
+            print(f"SECURITY ERROR: {warning}")
+            print("Merge aborted due to ledger integrity violation.")
+            sys.exit(1)
     
     # Check for conflicts between branches before merging
     if source_branch != target_branch:

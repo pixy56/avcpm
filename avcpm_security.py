@@ -410,3 +410,210 @@ def is_path_within_base(path: str, base_dir: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+# ============================================================================
+# DIRECTORY PROTECTION
+# ============================================================================
+
+def safe_makedirs(path: str, base_dir: str, exist_ok: bool = False) -> None:
+    """
+    Safely create directories, preventing symlink attacks.
+    
+    This function:
+    1. Resolves the path using realpath to follow symlinks
+    2. Verifies the resolved path is within base_dir
+    3. Rejects creation if any parent directory is a dangerous symlink
+    
+    Args:
+        path: Directory path to create
+        base_dir: Allowed base directory
+        exist_ok: If True, don't raise error if directory exists
+        
+    Raises:
+        SecurityError: If path is a symlink pointing outside base_dir
+        ValueError: If path would be created outside base_dir
+    """
+    # Resolve the full path
+    abs_path = os.path.abspath(path)
+    real_path = os.path.realpath(abs_path)
+    real_base = os.path.realpath(os.path.abspath(base_dir))
+    
+    # Verify the resolved path is within base_dir
+    if not _is_path_within_base(real_path, real_base):
+        raise SecurityError(
+            f"Security violation: Directory '{path}' resolves outside allowed "
+            f"base directory to '{real_path}'. Directory creation rejected."
+        )
+    
+    # Check if the path itself is a symlink
+    if os.path.islink(path):
+        link_target = os.readlink(path)
+        if not os.path.isabs(link_target):
+            link_target = os.path.join(os.path.dirname(abs_path), link_target)
+        if not _is_path_within_base(link_target, real_base):
+            raise SecurityError(
+                f"Security violation: Directory '{path}' is a symlink pointing "
+                f"outside allowed directory to '{link_target}'. Directory creation rejected."
+            )
+        # Symlink is safe and exists
+        return
+    
+    # Check each parent directory for dangerous symlinks
+    current = abs_path
+    while current and current != os.path.dirname(current):
+        if os.path.islink(current):
+            link_target = os.readlink(current)
+            if not os.path.isabs(link_target):
+                link_target = os.path.join(os.path.dirname(current), link_target)
+            if not _is_path_within_base(link_target, real_base):
+                raise SecurityError(
+                    f"Security violation: Parent directory '{current}' is a symlink "
+                    f"pointing outside allowed directory to '{link_target}'. "
+                    f"Directory creation rejected."
+                )
+        current = os.path.dirname(current)
+    
+    # Safe to create directory
+    os.makedirs(path, exist_ok=exist_ok)
+
+
+def safe_remove(filepath: str, base_dir: str) -> None:
+    """
+    Safely remove a file, preventing symlink attacks.
+    
+    Args:
+        filepath: File to remove
+        base_dir: Allowed base directory for symlinks
+        
+    Raises:
+        SecurityError: If filepath is a symlink pointing outside base_dir
+    """
+    if not os.path.lexists(filepath):
+        return
+    
+    # Check if filepath is a symlink
+    if os.path.islink(filepath):
+        link_target = os.readlink(filepath)
+        
+        # If target is relative, resolve it relative to the symlink's directory
+        if not os.path.isabs(link_target):
+            symlink_dir = os.path.dirname(os.path.abspath(filepath))
+            link_target = os.path.join(symlink_dir, link_target)
+        
+        # Verify the symlink target is within the allowed base directory
+        if not _is_path_within_base(link_target, base_dir):
+            raise SecurityError(
+                f"Security violation: Symlink '{filepath}' points outside allowed "
+                f"directory to '{link_target}'. Remove rejected."
+            )
+    
+    # Safe to remove
+    os.remove(filepath)
+
+
+def safe_rmtree(path: str, base_dir: str) -> None:
+    """
+    Safely remove a directory tree, preventing symlink attacks.
+    
+    This function will not follow symlinks when removing directories.
+    
+    Args:
+        path: Directory to remove
+        base_dir: Allowed base directory for symlinks
+        
+    Raises:
+        SecurityError: If path or any subdirectory is a symlink pointing outside base_dir
+    """
+    if not os.path.exists(path) and not os.path.islink(path):
+        return
+    
+    # Check if path itself is a symlink
+    if os.path.islink(path):
+        link_target = os.readlink(path)
+        if not os.path.isabs(link_target):
+            link_target = os.path.join(os.path.dirname(os.path.abspath(path)), link_target)
+        if not _is_path_within_base(link_target, base_dir):
+            raise SecurityError(
+                f"Security violation: Directory '{path}' is a symlink pointing "
+                f"outside allowed directory to '{link_target}'. Removal rejected."
+            )
+        # Safe symlink - remove it
+        os.remove(path)
+        return
+    
+    if os.path.isdir(path):
+        # First check all items for dangerous symlinks
+        for item in os.listdir(path):
+            item_path = os.path.join(path, item)
+            safe_rmtree(item_path, base_dir)
+        # Remove the directory itself
+        os.rmdir(path)
+    else:
+        safe_remove(path, base_dir)
+
+
+# ============================================================================
+# AVCPM DIRECTORY PROTECTION
+# ============================================================================
+
+def protect_avcpm_directory(base_dir: str = ".avcpm") -> None:
+    """
+    Protect the .avcpm directory from symlink attacks.
+    
+    This function:
+    1. Verifies the base_dir is not a symlink
+    2. Creates the base_dir if it doesn't exist
+    3. Sets appropriate permissions
+    
+    Args:
+        base_dir: Path to the AVCPM base directory (default: .avcpm)
+        
+    Raises:
+        SecurityError: If base_dir is a symlink or cannot be secured
+    """
+    abs_base = os.path.abspath(base_dir)
+    
+    # Check if base_dir is a symlink
+    if os.path.islink(base_dir):
+        link_target = os.readlink(base_dir)
+        raise SecurityError(
+            f"Security violation: '{base_dir}' is a symlink pointing to "
+            f"'{link_target}'. Remove the symlink and create a regular directory."
+        )
+    
+    # Check parent directories for symlinks
+    current = abs_base
+    while current and current != os.path.dirname(current):
+        if os.path.islink(current):
+            link_target = os.readlink(current)
+            raise SecurityError(
+                f"Security violation: Parent directory '{current}' is a symlink "
+                f"pointing to '{link_target}'. AVCPM directory cannot be secured."
+            )
+        current = os.path.dirname(current)
+    
+    # Create the directory if it doesn't exist
+    if not os.path.exists(base_dir):
+        os.makedirs(base_dir, exist_ok=True)
+    elif not os.path.isdir(base_dir):
+        raise SecurityError(
+            f"Security violation: '{base_dir}' exists but is not a directory."
+        )
+
+
+def ensure_avcpm_directory_secure(base_dir: str = ".avcpm") -> str:
+    """
+    Ensure the .avcpm directory exists and is secure from symlink attacks.
+    
+    Args:
+        base_dir: Path to the AVCPM base directory (default: .avcpm)
+        
+    Returns:
+        The absolute path to the secured base directory
+        
+    Raises:
+        SecurityError: If the directory cannot be secured
+    """
+    protect_avcpm_directory(base_dir)
+    return os.path.abspath(base_dir)

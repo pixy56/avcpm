@@ -16,6 +16,14 @@ Things like:
 ## Examples
 
 ```markdown
+## Knowledge Base Tools
+
+- `~/.openclaw/tools-venv/bin/python3 tools/search-vault.py search <query>` — Hybrid semantic search
+- `~/.openclaw/tools-venv/bin/python3 tools/search-vault.py grep <keyword>` — Keyword search
+- `~/.openclaw/tools-venv/bin/python3 tools/search-vault.py index` — Reindex vault
+- `python3 tools/mcp-wiki-ingest.py <file>` — Ingest source into wiki
+- `python3 tools/wiki-lint.py` — Check for broken links, orphans, stale pages
+
 ### Cameras
 
 - living-room → Main area, 180° wide angle

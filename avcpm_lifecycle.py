@@ -19,6 +19,7 @@ from avcpm_task import (
     DEFAULT_BASE_DIR as TASK_DEFAULT_BASE_DIR
 )
 from avcpm_agent import get_agent
+from avcpm_security import safe_makedirs, protect_avcpm_directory
 
 DEFAULT_BASE_DIR = ".avcpm"
 
@@ -126,9 +127,10 @@ def get_default_lifecycle_config() -> Dict[str, Any]:
 
 
 def save_lifecycle_config(config: Dict[str, Any], base_dir=DEFAULT_BASE_DIR) -> bool:
-    """Save lifecycle configuration."""
+    """Save lifecycle configuration with symlink protection."""
     config_path = get_lifecycle_config_path(base_dir)
-    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    protect_avcpm_directory(base_dir)
+    safe_makedirs(os.path.dirname(config_path), base_dir, exist_ok=True)
     
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
@@ -165,8 +167,9 @@ def get_task_commits_dir(base_dir=DEFAULT_BASE_DIR) -> str:
 
 
 def ensure_task_commits_dir(base_dir=DEFAULT_BASE_DIR):
-    """Ensure task commits directory exists."""
-    os.makedirs(get_task_commits_dir(base_dir), exist_ok=True)
+    """Ensure task commits directory exists with symlink protection."""
+    protect_avcpm_directory(base_dir)
+    safe_makedirs(get_task_commits_dir(base_dir), base_dir, exist_ok=True)
 
 
 def get_task_commits(task_id: str, base_dir=DEFAULT_BASE_DIR) -> List[Dict]:
@@ -253,7 +256,7 @@ def transition_task(task_id: str, new_status: str, reason: str = None,
     old_path = os.path.join(tasks_dir, current_status, f"{task_id}.json")
     new_path = os.path.join(tasks_dir, new_status, f"{task_id}.json")
     
-    os.makedirs(os.path.dirname(new_path), exist_ok=True)
+    safe_makedirs(os.path.dirname(new_path), base_dir, exist_ok=True)
     
     with open(old_path, "r") as f:
         data = json.load(f)

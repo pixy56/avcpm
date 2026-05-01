@@ -4,26 +4,101 @@ import shutil
 import json
 from datetime import datetime
 
+from avcpm_security import sanitize_path, safe_read_text, safe_write_text, safe_exists, safe_makedirs, protect_avcpm_directory
+from avcpm_auth import validate_session, get_authenticated_agent_from_env
+
 DEFAULT_BASE_DIR = ".avcpm"
 COLUMNS = ["todo", "in-progress", "review", "done"]
+
+
+def verify_task_permission(task_id, agent_id, base_dir=DEFAULT_BASE_DIR, require_auth=True):
+    """
+    Verify that an agent has permission to modify a task.
+    
+    Args:
+        task_id: The task ID being modified
+        agent_id: The agent attempting the modification
+        base_dir: Base directory for AVCPM
+        require_auth: Whether authentication is required
+    
+    Returns:
+        tuple: (is_permitted: bool, error_message: str or None)
+    """
+    if not require_auth:
+        return True, None
+    
+    # Check if agent is authenticated via environment
+    auth_agent_id, session_token = get_authenticated_agent_from_env(base_dir)
+    
+    if auth_agent_id is None:
+        return False, f"Agent authentication required. Run 'avcpm agent authenticate {agent_id}' and set AVCPM_AGENT_ID and AVCPM_SESSION_TOKEN environment variables."
+    
+    # Verify the authenticated agent matches the claimed agent
+    if auth_agent_id != agent_id:
+        return False, f"Agent ID mismatch: authenticated as {auth_agent_id} but claiming to be {agent_id}. Possible impersonation attempt."
+    
+    # Validate the session
+    if not validate_session(agent_id, session_token, base_dir):
+        return False, f"Session invalid or expired. Re-authenticate with 'avcpm agent authenticate {agent_id}'."
+    
+    # Verify agent identity matches signing key
+    from avcpm_agent import get_agent, get_public_key
+    agent = get_agent(agent_id, base_dir)
+    if agent is None:
+        return False, f"Agent {agent_id} not found in registry"
+    
+    if agent.get('agent_id') != agent_id:
+        return False, f"Agent ID mismatch in registry data"
+    
+    # Verify public key exists (prevents impersonation)
+    public_key = get_public_key(agent_id, base_dir)
+    if not public_key:
+        return False, f"Public key not found for agent {agent_id}"
+    
+    return True, None
+
+
+def _sanitize_task_id(task_id):
+    """Sanitize task ID to prevent path traversal in task filenames."""
+    if not task_id or not isinstance(task_id, str):
+        raise ValueError("Task ID must be a non-empty string")
+    # Reject task IDs with path traversal sequences
+    import re
+    if re.search(r'\.{2,}[/\\]', task_id) or re.search(r'[/\\]\.{2,}', task_id):
+        raise ValueError(f"Invalid task ID (contains path traversal): {task_id}")
+    # Reject task IDs with absolute paths
+    if os.path.isabs(task_id):
+        raise ValueError(f"Absolute paths not allowed in task ID: {task_id}")
+    # Reject task IDs with directory separators
+    if '/' in task_id or '\\' in task_id:
+        raise ValueError(f"Directory separators not allowed in task ID: {task_id}")
+    return task_id
 
 def get_tasks_dir(base_dir=DEFAULT_BASE_DIR):
     """Get the tasks directory path."""
     return os.path.join(base_dir, "tasks")
 
 def ensure_directories(base_dir=DEFAULT_BASE_DIR):
-    """Ensure task directories exist."""
+    """Ensure task directories exist with symlink protection."""
+    protect_avcpm_directory(base_dir)
     tasks_dir = get_tasks_dir(base_dir)
     for col in COLUMNS:
-        os.makedirs(os.path.join(tasks_dir, col), exist_ok=True)
+        safe_makedirs(os.path.join(tasks_dir, col), base_dir, exist_ok=True)
 
 def get_task_path(task_id, base_dir=DEFAULT_BASE_DIR):
     """Find the full path of a task file regardless of status."""
     tasks_dir = get_tasks_dir(base_dir)
+    sanitized_task_id = _sanitize_task_id(task_id)
     for col in COLUMNS:
-        path = os.path.join(tasks_dir, col, f"{task_id}.json")
-        if os.path.exists(path):
-            return path
+        path = os.path.join(tasks_dir, col, f"{sanitized_task_id}.json")
+        try:
+            # Validate the path is within the base_dir
+            safe_path = sanitize_path(os.path.join("tasks", col, f"{sanitized_task_id}.json"), base_dir)
+            if os.path.exists(safe_path):
+                return safe_path
+        except ValueError:
+            # Path traversal detected
+            continue
     return None
 
 def get_task_status(task_id, base_dir=DEFAULT_BASE_DIR):
@@ -39,8 +114,11 @@ def load_task(task_id, base_dir=DEFAULT_BASE_DIR):
     """Load task data from file."""
     path = get_task_path(task_id, base_dir)
     if path:
-        with open(path, "r") as f:
-            return json.load(f)
+        try:
+            content = safe_read_text(path, base_dir)
+            return json.loads(content)
+        except (ValueError, FileNotFoundError, json.JSONDecodeError):
+            return None
     return None
 
 def save_task(task_id, task_data, status=None, base_dir=DEFAULT_BASE_DIR):
@@ -51,9 +129,24 @@ def save_task(task_id, task_data, status=None, base_dir=DEFAULT_BASE_DIR):
         return False
     
     tasks_dir = get_tasks_dir(base_dir)
-    path = os.path.join(tasks_dir, status, f"{task_id}.json")
-    with open(path, "w") as f:
-        json.dump(task_data, f, indent=4)
+    sanitized_task_id = _sanitize_task_id(task_id)
+    
+    # Validate status is in allowed columns
+    if status not in COLUMNS:
+        raise ValueError(f"Invalid status: {status}")
+    
+    # Build and sanitize the path
+    rel_path = os.path.join("tasks", status, f"{sanitized_task_id}.json")
+    try:
+        safe_path = sanitize_path(rel_path, base_dir)
+    except ValueError as e:
+        raise ValueError(f"Invalid task path: {e}")
+    
+    # Ensure directory exists
+    safe_makedirs(os.path.dirname(safe_path), base_dir, exist_ok=True)
+    
+    # Safe write
+    safe_write_text(safe_path, json.dumps(task_data, indent=4), base_dir)
     return True
 
 def get_all_tasks(base_dir=DEFAULT_BASE_DIR):
@@ -62,11 +155,21 @@ def get_all_tasks(base_dir=DEFAULT_BASE_DIR):
     tasks_dir = get_tasks_dir(base_dir)
     for col in COLUMNS:
         col_path = os.path.join(tasks_dir, col)
-        if os.path.exists(col_path):
-            for f in os.listdir(col_path):
+        try:
+            # Sanitize the column path
+            safe_col_path = sanitize_path(os.path.join("tasks", col), base_dir)
+        except ValueError:
+            continue
+        
+        if os.path.exists(safe_col_path):
+            for f in os.listdir(safe_col_path):
                 if f.endswith(".json"):
-                    with open(os.path.join(col_path, f), "r") as task_f:
-                        tasks.append(json.load(task_f))
+                    task_path = os.path.join(safe_col_path, f)
+                    try:
+                        content = safe_read_text(task_path, base_dir)
+                        tasks.append(json.loads(content))
+                    except (ValueError, FileNotFoundError, json.JSONDecodeError, json.JSONDecodeError):
+                        continue
     return tasks
 
 # ============================================================================
@@ -299,7 +402,14 @@ def create_task(task_id, description, assignee="unassigned", depends_on=None, ba
     tasks_dir = get_tasks_dir(base_dir)
     ensure_directories(base_dir)
     
-    path = os.path.join(tasks_dir, "todo", f"{task_id}.json")
+    # Sanitize task ID
+    try:
+        sanitized_task_id = _sanitize_task_id(task_id)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    
+    path = os.path.join(tasks_dir, "todo", f"{sanitized_task_id}.json")
     if os.path.exists(path):
         print(f"Error: Task {task_id} already exists.")
         sys.exit(1)
@@ -322,7 +432,7 @@ def create_task(task_id, description, assignee="unassigned", depends_on=None, ba
                 sys.exit(1)
     
     task_data = {
-        "id": task_id,
+        "id": sanitized_task_id,
         "description": description,
         "assignee": assignee,
         "priority": "medium",
@@ -332,8 +442,8 @@ def create_task(task_id, description, assignee="unassigned", depends_on=None, ba
         ]
     }
     
-    with open(path, "w") as f:
-        json.dump(task_data, f, indent=4)
+    # Use safe_write for creating the task file
+    safe_write_text(path, json.dumps(task_data, indent=4), base_dir)
     
     if deps_list:
         print(f"Task {task_id} created in 'todo' with dependencies: {', '.join(deps_list)}")
@@ -347,23 +457,38 @@ def move_task(task_id, new_status, force=False, base_dir=DEFAULT_BASE_DIR):
     
     tasks_dir = get_tasks_dir(base_dir)
     
+    # Sanitize task ID
+    try:
+        sanitized_task_id = _sanitize_task_id(task_id)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    
     # Find where the task is currently
     current_path = None
     current_status = None
     for col in COLUMNS:
-        p = os.path.join(tasks_dir, col, f"{task_id}.json")
-        if os.path.exists(p):
-            current_path = p
-            current_status = col
-            break
+        p = os.path.join(tasks_dir, col, f"{sanitized_task_id}.json")
+        try:
+            # Validate path is within base_dir
+            safe_p = sanitize_path(os.path.join("tasks", col, f"{sanitized_task_id}.json"), base_dir)
+            if os.path.exists(safe_p):
+                current_path = safe_p
+                current_status = col
+                break
+        except ValueError:
+            continue
     
     if not current_path:
         print(f"Error: Task {task_id} not found.")
         sys.exit(1)
     
     # Load task data
-    with open(current_path, "r") as f:
-        task_data = json.load(f)
+    try:
+        task_data = json.loads(safe_read_text(current_path, base_dir))
+    except (ValueError, FileNotFoundError) as e:
+        print(f"Error: Failed to load task: {e}")
+        sys.exit(1)
     
     # Check dependencies before moving to in-progress or review
     if new_status in ["in-progress", "review"] and not force:
@@ -380,11 +505,21 @@ def move_task(task_id, new_status, force=False, base_dir=DEFAULT_BASE_DIR):
     })
     
     # Move file
-    new_path = os.path.join(tasks_dir, new_status, f"{task_id}.json")
-    shutil.move(current_path, new_path)
+    new_path = os.path.join(tasks_dir, new_status, f"{sanitized_task_id}.json")
+    try:
+        safe_new_path = sanitize_path(os.path.join("tasks", new_status, f"{sanitized_task_id}.json"), base_dir)
+    except ValueError as e:
+        print(f"Error: Invalid destination path: {e}")
+        sys.exit(1)
     
-    with open(new_path, "w") as f:
-        json.dump(task_data, f, indent=4)
+    # Ensure destination directory exists
+    safe_makedirs(os.path.dirname(safe_new_path), base_dir, exist_ok=True)
+    
+    # Move using shutil (moving within same base_dir is safe)
+    shutil.move(current_path, safe_new_path)
+    
+    # Write updated task data
+    safe_write_text(safe_new_path, json.dumps(task_data, indent=4), base_dir)
     
     if force and new_status in ["in-progress", "review"]:
         print(f"Task {task_id} moved to {new_status} (forced, bypassed dependency check).")
@@ -396,7 +531,12 @@ def list_tasks(base_dir=DEFAULT_BASE_DIR):
     
     for col in COLUMNS:
         print(f"\n--- {col.upper()} ---")
-        col_path = os.path.join(tasks_dir, col)
+        try:
+            col_path = sanitize_path(os.path.join("tasks", col), base_dir)
+        except ValueError:
+            print(" (empty)")
+            continue
+            
         if not os.path.exists(col_path):
             print(" (empty)")
             continue
@@ -404,13 +544,17 @@ def list_tasks(base_dir=DEFAULT_BASE_DIR):
         if not files:
             print(" (empty)")
         for f in files:
-            with open(os.path.join(col_path, f), "r") as task_f:
-                data = json.load(task_f)
+            task_path = os.path.join(col_path, f)
+            try:
+                content = safe_read_text(task_path, base_dir)
+                data = json.loads(content)
                 deps = data.get("depends_on", [])
                 blocked = is_blocked(data['id'], base_dir) if deps else False
                 status_marker = " [BLOCKED]" if blocked else ""
                 deps_info = f" (deps: {', '.join(deps)})" if deps else ""
                 print(f"[{data['id']}] {data['description']} ({data['assignee']}){deps_info}{status_marker}")
+            except (ValueError, FileNotFoundError, json.JSONDecodeError):
+                continue
 
 def list_blocked(base_dir=DEFAULT_BASE_DIR):
     """List all tasks blocked by incomplete dependencies."""

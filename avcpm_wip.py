@@ -16,6 +16,8 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
+from avcpm_security import protect_avcpm_directory, safe_makedirs, safe_write_text, safe_read_text
+
 DEFAULT_BASE_DIR = "."
 WIP_DIR = ".avcpm"
 WIP_REGISTRY = "wip_registry.json"
@@ -27,30 +29,31 @@ def _get_wip_path(base_dir: str = DEFAULT_BASE_DIR) -> str:
 
 
 def _ensure_wip_dir(base_dir: str = DEFAULT_BASE_DIR) -> str:
-    """Ensure the .avcpm directory exists."""
+    """Ensure the .avcpm directory exists with symlink protection."""
+    protect_avcpm_directory(os.path.join(base_dir, WIP_DIR))
     wip_dir = os.path.join(base_dir, WIP_DIR)
-    os.makedirs(wip_dir, exist_ok=True)
+    safe_makedirs(wip_dir, os.path.abspath(base_dir), exist_ok=True)
     return wip_dir
 
 
 def _load_registry(base_dir: str = DEFAULT_BASE_DIR) -> Dict[str, Any]:
-    """Load the WIP registry."""
+    """Load the WIP registry with symlink protection."""
     wip_path = _get_wip_path(base_dir)
     if os.path.exists(wip_path):
         try:
-            with open(wip_path, 'r') as f:
-                return json.load(f)
+            content = safe_read_text(wip_path, os.path.abspath(base_dir))
+            return json.loads(content)
         except (json.JSONDecodeError, IOError):
             return {"claims": {}}
     return {"claims": {}}
 
 
 def _save_registry(registry: Dict[str, Any], base_dir: str = DEFAULT_BASE_DIR) -> None:
-    """Save the WIP registry."""
+    """Save the WIP registry with symlink protection."""
     _ensure_wip_dir(base_dir)
     wip_path = _get_wip_path(base_dir)
-    with open(wip_path, 'w') as f:
-        json.dump(registry, f, indent=2)
+    protect_avcpm_directory(os.path.join(base_dir, WIP_DIR))
+    safe_write_text(wip_path, json.dumps(registry, indent=2), os.path.abspath(base_dir))
 
 
 def _normalize_path(filepath: str, base_dir: str = DEFAULT_BASE_DIR) -> str:

@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 
 DEFAULT_BASE_DIR = ".avcpm"
@@ -45,9 +45,12 @@ def get_registry_path(base_dir=DEFAULT_BASE_DIR):
     return os.path.join(get_agents_dir(base_dir), "registry.json")
 
 
+from avcpm_security import protect_avcpm_directory, validate_path_is_safe, SecurityError, safe_makedirs
+
 def ensure_directories(base_dir=DEFAULT_BASE_DIR):
-    """Ensure agents directory exists."""
-    os.makedirs(get_agents_dir(base_dir), exist_ok=True)
+    """Ensure agents directory exists with symlink attack protection."""
+    protect_avcpm_directory(base_dir)
+    safe_makedirs(get_agents_dir(base_dir), base_dir, exist_ok=True)
 
 
 def _load_registry(base_dir=DEFAULT_BASE_DIR):
@@ -100,7 +103,7 @@ def _serialize_public_key(public_key):
 
 def _derive_key(passphrase: str, salt: bytes) -> bytes:
     """
-    Derive encryption key from passphrase using PBKDF2.
+    Derive encryption key from passphrase using PBKDF2HMAC.
     
     Args:
         passphrase: The passphrase to derive key from
@@ -109,12 +112,11 @@ def _derive_key(passphrase: str, salt: bytes) -> bytes:
     Returns:
         Derived key bytes
     """
-    kdf = PBKDF2(
+    kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=ENCRYPTION_KEY_LENGTH,
         salt=salt,
         iterations=ENCRYPTION_ITERATIONS,
-        backend=default_backend()
     )
     return kdf.derive(passphrase.encode('utf-8'))
 
@@ -305,25 +307,32 @@ def _load_private_key(agent_id, base_dir=DEFAULT_BASE_DIR, passphrase=None):
     Args:
         agent_id: The agent ID
         base_dir: Base directory for AVCPM
-        passphrase: Optional passphrase for decrypting encrypted keys
+        passphrase: REQUIRED passphrase for decrypting the encrypted key
     
     Returns:
         The private key object
-    """
-    private_path = os.path.join(get_agent_dir(agent_id, base_dir), "private.pem")
-    encrypted_path = os.path.join(get_agent_dir(agent_id, base_dir), "private.pem.enc")
     
-    # Check for encrypted key first
+    Raises:
+        ValueError: If passphrase is not provided or key not found
+    """
+    if not passphrase:
+        raise ValueError(f"Passphrase is required to load private key for agent {agent_id}")
+    
+    encrypted_path = os.path.join(get_agent_dir(agent_id, base_dir), "private.pem.enc")
+    legacy_path = os.path.join(get_agent_dir(agent_id, base_dir), "private.pem")
+    
+    # Check for encrypted key
     if os.path.exists(encrypted_path):
-        if passphrase is None:
-            raise ValueError(f"Private key for agent {agent_id} is encrypted. Passphrase required.")
         return decrypt_private_key(agent_id, passphrase, base_dir)
     
-    if not os.path.exists(private_path):
-        raise ValueError(f"Private key not found for agent {agent_id}")
+    # Check for legacy unencrypted key (should not exist in new agents)
+    if os.path.exists(legacy_path):
+        raise ValueError(
+            f"Legacy unencrypted private key found for agent {agent_id}. "
+            f"This key format is no longer supported. Please recreate the agent with a passphrase."
+        )
     
-    with open(private_path, "rb") as f:
-        return serialization.load_pem_private_key(f.read(), password=None)
+    raise ValueError(f"Private key not found for agent {agent_id}")
 
 
 def _load_public_key(agent_id, base_dir=DEFAULT_BASE_DIR):
@@ -344,10 +353,13 @@ def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None):
         name: Agent name
         email: Agent email
         base_dir: Base directory for AVCPM (default: .avcpm)
-        passphrase: Optional passphrase to encrypt private key
+        passphrase: REQUIRED passphrase to encrypt private key (minimum 8 characters)
     
     Returns:
         dict: Agent metadata including agent_id, name, email, created_at
+    
+    Raises:
+        ValueError: If passphrase is not provided or is too short
     """
     ensure_directories(base_dir)
     
@@ -359,7 +371,7 @@ def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None):
         agent_id = _generate_agent_id()
         agent_dir = get_agent_dir(agent_id, base_dir)
     
-    os.makedirs(agent_dir, exist_ok=True)
+    safe_makedirs(agent_dir, base_dir, exist_ok=True)
     
     # Generate key pair
     private_key, public_key = _generate_key_pair()
@@ -373,22 +385,19 @@ def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None):
     with open(public_path, "wb") as f:
         f.write(public_pem)
     
-    # Handle private key (encrypted or not)
-    if passphrase:
-        # Encrypt and store private key
-        encrypted_data = _encrypt_data(private_pem, passphrase)
-        private_path = os.path.join(agent_dir, "private.pem.enc")
-        with open(private_path, "wb") as f:
-            f.write(encrypted_data)
-        os.chmod(private_path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-        private_key_path = private_path
-    else:
-        # Store unencrypted private key
-        private_path = os.path.join(agent_dir, "private.pem")
-        with open(private_path, "wb") as f:
-            f.write(private_pem)
-        os.chmod(private_path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-        private_key_path = private_path
+    # Validate passphrase is required
+    if not passphrase:
+        raise ValueError("Passphrase is required for private key encryption. Please provide a passphrase of at least 8 characters.")
+    if len(passphrase) < 8:
+        raise ValueError("Passphrase must be at least 8 characters long.")
+    
+    # Encrypt and store private key (always encrypted)
+    encrypted_data = _encrypt_data(private_pem, passphrase)
+    private_path = os.path.join(agent_dir, "private.pem.enc")
+    with open(private_path, "wb") as f:
+        f.write(encrypted_data)
+    os.chmod(private_path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+    private_key_path = private_path
     
     # Create agent metadata
     agent_data = {
@@ -405,10 +414,9 @@ def create_agent(name, email, base_dir=DEFAULT_BASE_DIR, passphrase=None):
     registry["agents"][agent_id] = {
         "name": name,
         "email": email,
-        "created_at": agent_data["created_at"]
+        "created_at": agent_data["created_at"],
+        "encrypted": True
     }
-    if passphrase:
-        registry["agents"][agent_id]["encrypted"] = True
     _save_registry(registry, base_dir)
     
     return agent_data
@@ -472,10 +480,13 @@ def sign_data(agent_id, data, base_dir=DEFAULT_BASE_DIR, passphrase=None):
         agent_id: The agent ID
         data: Data to sign (string or bytes)
         base_dir: Base directory for AVCPM (default: .avcpm)
-        passphrase: Passphrase for encrypted keys (auto-detects if needed)
+        passphrase: REQUIRED passphrase for decrypting the encrypted private key
     
     Returns:
         bytes: The signature
+    
+    Raises:
+        ValueError: If passphrase is not provided
     """
     # Convert string to bytes if needed
     if isinstance(data, str):
@@ -557,10 +568,13 @@ def sign_commit(commit_id, timestamp, changes, agent_id, base_dir=DEFAULT_BASE_D
         changes: List of change dictionaries
         agent_id: The agent ID signing the commit
         base_dir: Base directory for AVCPM (default: .avcpm)
-        passphrase: Passphrase for encrypted keys (auto-detects if needed)
+        passphrase: REQUIRED passphrase for decrypting the encrypted private key
     
     Returns:
         dict: Signed commit metadata with signature and agent_id
+    
+    Raises:
+        ValueError: If passphrase is not provided
     """
     changes_hash = calculate_changes_hash(changes)
     

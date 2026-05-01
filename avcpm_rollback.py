@@ -23,7 +23,11 @@ from avcpm_branch import (
     BRANCH_STATUS_ACTIVE,
     DEFAULT_BASE_DIR
 )
-from avcpm_security import safe_copy, safe_read
+from avcpm_security import safe_copy, safe_read, safe_makedirs, safe_rmtree, protect_avcpm_directory
+from avcpm_ledger_integrity import (
+    verify_ledger_integrity,
+    check_integrity_warning
+)
 
 # Backup metadata
 BACKUP_STATUS_ACTIVE = "active"
@@ -51,8 +55,9 @@ def _generate_backup_id() -> str:
 
 
 def _ensure_backups_dir(base_dir=DEFAULT_BASE_DIR):
-    """Ensure the backups directory exists."""
-    os.makedirs(get_backups_dir(base_dir), exist_ok=True)
+    """Ensure the backups directory exists with symlink protection."""
+    protect_avcpm_directory(base_dir)
+    safe_makedirs(get_backups_dir(base_dir), base_dir, exist_ok=True)
 
 
 def _copy_directory_tree(src: str, dst: str, base_dir: str = DEFAULT_BASE_DIR):
@@ -60,7 +65,7 @@ def _copy_directory_tree(src: str, dst: str, base_dir: str = DEFAULT_BASE_DIR):
     if not os.path.exists(src):
         return
     
-    os.makedirs(dst, exist_ok=True)
+    safe_makedirs(dst, base_dir, exist_ok=True)
     
     for item in os.listdir(src):
         src_path = os.path.join(src, item)
@@ -208,6 +213,13 @@ def rollback(commit_id: str, base_dir=DEFAULT_BASE_DIR, dry_run: bool = False) -
     
     branch_name, commit_data = commit_info
     
+    # Verify ledger integrity before rollback
+    integrity_report = verify_ledger_integrity(branch_name, base_dir)
+    if not integrity_report.success:
+        warning = check_integrity_warning(branch_name, base_dir)
+        result["error"] = f"Ledger integrity compromised: {warning}. Rollback aborted for security."
+        return result
+    
     # Check if commit is merged
     if not _is_commit_merged(commit_id, branch_name, base_dir):
         result["error"] = f"Commit {commit_id} has not been merged. Use unstage() instead."
@@ -300,6 +312,13 @@ def unstage(commit_id: str, branch_name: Optional[str] = None, base_dir=DEFAULT_
     
     if not os.path.exists(commit_path):
         result["error"] = f"Commit {commit_id} not found in branch '{branch_name}' staging"
+        return result
+    
+    # Verify ledger integrity before unstage
+    integrity_report = verify_ledger_integrity(branch_name, base_dir)
+    if not integrity_report.success:
+        warning = check_integrity_warning(branch_name, base_dir)
+        result["error"] = f"Ledger integrity compromised: {warning}. Unstage aborted for security."
         return result
     
     # Load commit data
@@ -419,6 +438,13 @@ def reset_soft(target_commit: str, branch_name: Optional[str] = None, base_dir=D
         result["error"] = f"Commit {target_commit} not found in branch '{branch_name}'"
         return result
     
+    # Verify ledger integrity before reset
+    integrity_report = verify_ledger_integrity(branch_name, base_dir)
+    if not integrity_report.success:
+        warning = check_integrity_warning(branch_name, base_dir)
+        result["error"] = f"Ledger integrity compromised: {warning}. Reset aborted for security."
+        return result
+    
     # Remove commits from ledger but keep staging files
     ledger_dir = get_branch_ledger_dir(branch_name, base_dir)
     for commit in commits_to_remove:
@@ -477,6 +503,13 @@ def reset_hard(target_commit: str, branch_name: Optional[str] = None, base_dir=D
     
     if not found_target:
         result["error"] = f"Commit {target_commit} not found in branch '{branch_name}'"
+        return result
+    
+    # Verify ledger integrity before reset
+    integrity_report = verify_ledger_integrity(branch_name, base_dir)
+    if not integrity_report.success:
+        warning = check_integrity_warning(branch_name, base_dir)
+        result["error"] = f"Ledger integrity compromised: {warning}. Reset aborted for security."
         return result
     
     # Auto-backup before destructive operation

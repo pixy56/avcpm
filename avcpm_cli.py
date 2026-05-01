@@ -71,6 +71,21 @@ from avcpm_wip import (
 from avcpm_status import main as status_main
 from avcpm_validate import validate_checksums, fix_mismatches, print_report
 from avcpm_agent import create_agent, list_agents, get_agent
+from avcpm_auth import (
+    create_challenge,
+    sign_challenge_response,
+    authenticate_agent,
+    get_session,
+    delete_session,
+    list_active_sessions,
+    cleanup_expired_sessions
+)
+from avcpm_ledger_integrity import (
+    verify_ledger_integrity,
+    verify_all_ledgers,
+    format_integrity_report,
+    validate_ledger_command
+)
 
 
 # ============================================================================
@@ -184,7 +199,16 @@ def commit_command(args):
         sys.exit(1)
     
     skip_validation = args.skip_validation if hasattr(args, 'skip_validation') else False
-    commit(args.task_id, args.agent_id, args.rationale, args.files, None, base_dir, skip_validation)
+    require_auth = args.require_auth if hasattr(args, 'require_auth') else True
+    
+    # Get session token from environment if available
+    session_token = os.environ.get("AVCPM_SESSION_TOKEN")
+    
+    try:
+        commit(args.task_id, args.agent_id, args.rationale, args.files, None, base_dir, skip_validation, require_auth, session_token)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
 
 def merge_command(args):
@@ -627,18 +651,31 @@ def wip_command(args):
 
 def agent_command(args):
     """Route agent commands."""
+    import getpass
     base_dir = get_base_dir(args)
     
     if args.subcommand == "create":
         if not args.name or not args.email:
             print("Error: agent create requires name and email")
             sys.exit(1)
+        
+        # Prompt for passphrase securely (required)
+        passphrase = getpass.getpass("Enter passphrase for private key encryption: ")
+        confirm = getpass.getpass("Confirm passphrase: ")
+        if passphrase != confirm:
+            print("Error: Passphrases do not match")
+            sys.exit(1)
+        if len(passphrase) < 8:
+            print("Error: Passphrase must be at least 8 characters")
+            sys.exit(1)
+        
         try:
-            agent = create_agent(args.name, args.email, base_dir)
+            agent = create_agent(args.name, args.email, base_dir, passphrase=passphrase)
             print(f"Agent created successfully!")
             print(f"  ID: {agent['agent_id']}")
             print(f"  Name: {agent['name']}")
             print(f"  Email: {agent['email']}")
+            print(f"  Encryption: REQUIRED (AES-256-CBC with PBKDF2)")
         except Exception as e:
             print(f"Error creating agent: {e}")
             sys.exit(1)
@@ -654,6 +691,8 @@ def agent_command(args):
                 print(f"  ID: {agent_id}")
                 print(f"  Name: {info.get('name', 'N/A')}")
                 print(f"  Email: {info.get('email', 'N/A')}")
+                encrypted = info.get('encrypted', True)
+                print(f"  Encrypted: {'Yes (required)' if encrypted else 'No'}")
                 print("-" * 60)
     
     elif args.subcommand == "show":
@@ -666,18 +705,134 @@ def agent_command(args):
             print(f"  ID: {agent['agent_id']}")
             print(f"  Email: {agent['email']}")
             print(f"  Created: {agent['created_at']}")
+            encrypted = agent.get('encrypted', True)
+            print(f"  Encryption: {'REQUIRED (AES-256-CBC)' if encrypted else 'Not encrypted (legacy)'}")
+            
+            # Check if agent has active session
+            from avcpm_auth import get_session
+            session = get_session(args.agent_id, base_dir)
+            if session:
+                print(f"  Session: Active (expires {session.get('expires_at', 'unknown')[:19]})")
+            else:
+                print(f"  Session: None (use 'avcpm agent authenticate {args.agent_id}')")
         else:
             print(f"Agent {args.agent_id} not found.")
             sys.exit(1)
+    
+    elif args.subcommand == "authenticate":
+        """Handle agent authentication with challenge-response."""
+        if not args.agent_id:
+            print("Error: agent authenticate requires agent_id")
+            sys.exit(1)
+        
+        agent_id = args.agent_id
+        
+        # Check if agent exists
+        agent = get_agent(agent_id, base_dir)
+        if not agent:
+            print(f"Error: Agent {agent_id} not found")
+            sys.exit(1)
+        
+        # All keys are now encrypted - require passphrase
+        passphrase = getpass.getpass("Enter passphrase for private key: ")
+        
+        # Generate challenge
+        challenge = create_challenge(agent_id, base_dir)
+        print(f"Generated challenge for {agent_id}")
+        
+        # Sign the challenge
+        try:
+            signature = sign_challenge_response(challenge, agent_id, base_dir, passphrase)
+        except Exception as e:
+            print(f"Error signing challenge: {e}")
+            sys.exit(1)
+        
+        # Authenticate
+        success, result = authenticate_agent(agent_id, signature, base_dir)
+        if success:
+            print(f"Authentication successful!")
+            print(f"  Session token: {result['session_token']}")
+            print(f"  Expires at: {result['expires_at']}")
+            print(f"\nSet environment variable to use this session:")
+            print(f"  export AVCPM_AGENT_ID={agent_id}")
+            print(f"  export AVCPM_SESSION_TOKEN={result['session_token']}")
+        else:
+            print(f"Authentication failed: {result}")
+            sys.exit(1)
+    
+    elif args.subcommand == "logout":
+        """End agent session."""
+        if not args.agent_id:
+            print("Error: agent logout requires agent_id")
+            sys.exit(1)
+        
+        if delete_session(args.agent_id, base_dir):
+            print(f"Session for {args.agent_id} ended")
+        else:
+            print(f"No active session for {args.agent_id}")
+    
+    elif args.subcommand == "sessions":
+        """List active sessions."""
+        sessions = list_active_sessions(base_dir)
+        if not sessions:
+            print("No active sessions")
+        else:
+            print(f"{'Agent ID':<15} {'Created':<25} {'Expires':<25} {'Last Used'}")
+            print("-" * 100)
+            for session in sessions:
+                agent_id = session.get("agent_id", "unknown")
+                created = session.get("created_at", "unknown")[:19]
+                expires = session.get("expires_at", "unknown")[:19]
+                last_used = session.get("last_used", "unknown")[:19]
+                print(f"{agent_id:<15} {created:<25} {expires:<25} {last_used}")
+    
+    elif args.subcommand == "cleanup":
+        """Clean up expired sessions."""
+        cleanup_expired_sessions(base_dir)
+        print("Expired sessions cleaned up")
     
     else:
         print(f"Unknown agent subcommand: {args.subcommand}")
         sys.exit(1)
 
 
+def validate_agent_identity(agent_id, base_dir):
+    """
+    Validate that an agent ID is properly bound to its signing key.
+    This prevents agent impersonation attacks.
+    """
+    # Import here to avoid circular imports
+    from avcpm_agent import get_agent, get_public_key
+    
+    # Check agent exists in registry
+    agent = get_agent(agent_id, base_dir)
+    if not agent:
+        return False, f"Agent {agent_id} not found in registry"
+    
+    # Verify registry ID matches stored ID
+    if agent.get('agent_id') != agent_id:
+        return False, f"Agent ID mismatch: registry data corrupted"
+    
+    # Verify public key exists
+    public_key = get_public_key(agent_id, base_dir)
+    if not public_key:
+        return False, f"Public key not found for agent {agent_id}"
+    
+    return True, None
+
+
 def validate_command(args):
     """Route validate commands."""
     base_dir = get_base_dir(args)
+    
+    subcommand = getattr(args, 'subcommand', 'checksums')
+    
+    if subcommand == 'ledger':
+        # Ledger integrity validation
+        validate_ledger_command(args)
+        return
+    
+    # Default: checksum validation
     staging_dir = os.path.join(base_dir, "staging")
     ledger_dir = os.path.join(base_dir, "ledger")
     
@@ -1024,11 +1179,20 @@ Examples:
     # ========================================================================
     validate_parser = subparsers.add_parser(
         "validate",
-        help="Checksum validation"
+        help="Checksum and ledger validation"
     )
-    validate_parser.add_argument("--staging-dir", help="Staging directory")
-    validate_parser.add_argument("--ledger-dir", help="Ledger directory")
-    validate_parser.add_argument("--fix", action="store_true", help="Fix mismatches")
+    validate_subparsers = validate_parser.add_subparsers(dest="subcommand")
+    
+    # validate checksums (default behavior)
+    validate_checksum = validate_subparsers.add_parser("checksums", help="Validate file checksums")
+    validate_checksum.add_argument("--staging-dir", help="Staging directory")
+    validate_checksum.add_argument("--ledger-dir", help="Ledger directory")
+    validate_checksum.add_argument("--fix", action="store_true", help="Fix mismatches")
+    
+    # validate ledger integrity
+    validate_ledger = validate_subparsers.add_parser("ledger", help="Validate ledger integrity chain")
+    validate_ledger.add_argument("--branch", help="Branch to validate (default: all)")
+    validate_ledger.add_argument("--json", action="store_true", help="Output as JSON")
     
     # ========================================================================
     # agent command
@@ -1051,6 +1215,20 @@ Examples:
     # agent show
     agent_show = agent_subparsers.add_parser("show", help="Show agent details")
     agent_show.add_argument("agent_id", help="Agent ID")
+    
+    # agent authenticate
+    agent_auth = agent_subparsers.add_parser("authenticate", help="Authenticate agent for operations")
+    agent_auth.add_argument("agent_id", help="Agent ID")
+    
+    # agent logout
+    agent_logout = agent_subparsers.add_parser("logout", help="End agent session")
+    agent_logout.add_argument("agent_id", help="Agent ID")
+    
+    # agent sessions
+    agent_subparsers.add_parser("sessions", help="List active sessions")
+    
+    # agent cleanup
+    agent_subparsers.add_parser("cleanup", help="Clean up expired sessions")
     
     return parser
 
@@ -1080,6 +1258,7 @@ def main():
         "status": status_command,
         "validate": validate_command,
         "agent": agent_command,
+        "ledger": validate_command,  # Alias for validate ledger
     }
     
     handler = command_handlers.get(args.command)

@@ -34,10 +34,26 @@ from avcpm_agent import (
 class TestAgentCreation:
     """Tests for agent creation and key generation."""
     
-    def test_create_agent_generates_keys(self, tmp_path):
-        """Test that creating an agent generates RSA key pair."""
+    TEST_PASSPHRASE = "secure_test_pass_123"  # Required passphrase for all tests
+    
+    def test_create_agent_requires_passphrase(self, tmp_path):
+        """Test that creating an agent requires a passphrase."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        
+        with pytest.raises(ValueError) as exc_info:
+            create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        
+        assert "Passphrase is required" in str(exc_info.value)
+    
+    def test_create_agent_generates_keys(self, tmp_path):
+        """Test that creating an agent generates RSA key pair with encryption."""
+        base_dir = tmp_path / ".avcpm"
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         assert "agent_id" in agent
         assert agent["name"] == "Test Agent"
@@ -46,25 +62,50 @@ class TestAgentCreation:
         
         # Check keys were created
         agent_dir = get_agent_dir(agent["agent_id"], base_dir=str(base_dir))
-        assert os.path.exists(os.path.join(agent_dir, "private.pem"))
+        assert os.path.exists(os.path.join(agent_dir, "private.pem.enc"))  # Encrypted key
+        assert not os.path.exists(os.path.join(agent_dir, "private.pem"))  # No plaintext key
         assert os.path.exists(os.path.join(agent_dir, "public.pem"))
     
     def test_private_key_permissions(self, tmp_path):
-        """Test that private key has restrictive permissions (600)."""
+        """Test that encrypted private key has restrictive permissions (600)."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         agent_dir = get_agent_dir(agent["agent_id"], base_dir=str(base_dir))
-        private_key_path = os.path.join(agent_dir, "private.pem")
+        private_key_path = os.path.join(agent_dir, "private.pem.enc")  # Encrypted key
         
         # Check permissions are 600 (readable/writable only by owner)
         mode = os.stat(private_key_path).st_mode
         assert stat.S_IMODE(mode) == 0o600
     
-    def test_registry_created(self, tmp_path):
-        """Test that agent is registered in registry.json."""
+    def test_passphrase_too_short(self, tmp_path):
+        """Test that short passphrase is rejected."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        
+        with pytest.raises(ValueError) as exc_info:
+            create_agent(
+                "Test Agent",
+                "test@example.com",
+                base_dir=str(base_dir),
+                passphrase="short"
+            )
+        
+        assert "at least 8 characters" in str(exc_info.value)
+    
+    def test_registry_created(self, tmp_path):
+        """Test that agent is registered in registry.json with encryption flag."""
+        base_dir = tmp_path / ".avcpm"
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         registry_path = get_registry_path(base_dir=str(base_dir))
         assert os.path.exists(registry_path)
@@ -75,12 +116,23 @@ class TestAgentCreation:
         assert agent["agent_id"] in registry["agents"]
         assert registry["agents"][agent["agent_id"]]["name"] == "Test Agent"
         assert registry["agents"][agent["agent_id"]]["email"] == "test@example.com"
+        assert registry["agents"][agent["agent_id"]].get("encrypted") is True
     
     def test_unique_agent_ids(self, tmp_path):
         """Test that multiple agents get unique IDs."""
         base_dir = tmp_path / ".avcpm"
-        agent1 = create_agent("Agent 1", "agent1@example.com", base_dir=str(base_dir))
-        agent2 = create_agent("Agent 2", "agent2@example.com", base_dir=str(base_dir))
+        agent1 = create_agent(
+            "Agent 1", 
+            "agent1@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
+        agent2 = create_agent(
+            "Agent 2", 
+            "agent2@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         assert agent1["agent_id"] != agent2["agent_id"]
 
@@ -97,8 +149,19 @@ class TestAgentManagement:
     def test_list_agents_with_multiple(self, tmp_path):
         """Test listing multiple agents."""
         base_dir = tmp_path / ".avcpm"
-        agent1 = create_agent("Agent 1", "agent1@example.com", base_dir=str(base_dir))
-        agent2 = create_agent("Agent 2", "agent2@example.com", base_dir=str(base_dir))
+        TEST_PASSPHRASE = "secure_test_pass_123"
+        agent1 = create_agent(
+            "Agent 1", 
+            "agent1@example.com", 
+            base_dir=str(base_dir),
+            passphrase=TEST_PASSPHRASE
+        )
+        agent2 = create_agent(
+            "Agent 2", 
+            "agent2@example.com", 
+            base_dir=str(base_dir),
+            passphrase=TEST_PASSPHRASE
+        )
         
         agents = list_agents(base_dir=str(base_dir))
         
@@ -109,7 +172,13 @@ class TestAgentManagement:
     def test_get_agent_existing(self, tmp_path):
         """Test getting an existing agent."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        TEST_PASSPHRASE = "secure_test_pass_123"
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=TEST_PASSPHRASE
+        )
         
         result = get_agent(agent["agent_id"], base_dir=str(base_dir))
         
@@ -127,7 +196,13 @@ class TestAgentManagement:
     def test_get_public_key(self, tmp_path):
         """Test retrieving public key."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        TEST_PASSPHRASE = "secure_test_pass_123"
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=TEST_PASSPHRASE
+        )
         
         public_key = get_public_key(agent["agent_id"], base_dir=str(base_dir))
         
@@ -145,24 +220,39 @@ class TestAgentManagement:
 class TestSigning:
     """Tests for data signing and verification."""
     
+    TEST_PASSPHRASE = "secure_test_pass_123"
+    
     def test_sign_string_data(self, tmp_path):
-        """Test signing string data."""
+        """Test signing string data with passphrase."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         data = "Hello, World!"
-        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir))
+        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir), passphrase=self.TEST_PASSPHRASE)
+        
+        assert isinstance(signature, bytes)
+        assert len(signature) > 0
         
         assert isinstance(signature, bytes)
         assert len(signature) > 0
     
     def test_sign_bytes_data(self, tmp_path):
-        """Test signing bytes data."""
+        """Test signing bytes data with passphrase."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         data = b"Hello, World!"
-        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir))
+        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir), passphrase=self.TEST_PASSPHRASE)
         
         assert isinstance(signature, bytes)
         assert len(signature) > 0
@@ -170,34 +260,67 @@ class TestSigning:
     def test_verify_valid_signature(self, tmp_path):
         """Test verifying a valid signature."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         data = "Hello, World!"
-        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir))
+        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir), passphrase=self.TEST_PASSPHRASE)
         
         assert verify_signature(agent["agent_id"], data, signature, base_dir=str(base_dir)) is True
     
     def test_verify_valid_signature_bytes(self, tmp_path):
         """Test verifying a valid signature for bytes data."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         data = b"Hello, World!"
-        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir))
+        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir), passphrase=self.TEST_PASSPHRASE)
         
         assert verify_signature(agent["agent_id"], data, signature, base_dir=str(base_dir)) is True
+    
+    def test_sign_requires_passphrase(self, tmp_path):
+        """Test that signing requires passphrase."""
+        base_dir = tmp_path / ".avcpm"
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
+        
+        data = "Hello, World!"
+        with pytest.raises(ValueError) as exc_info:
+            sign_data(agent["agent_id"], data, base_dir=str(base_dir))
+        
+        assert "Passphrase is required" in str(exc_info.value)
 
 
 class TestTamperingDetection:
     """Tests for signature tampering detection."""
     
+    TEST_PASSPHRASE = "secure_test_pass_123"
+    
     def test_tampered_data(self, tmp_path):
         """Test that tampered data fails verification."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         data = "Hello, World!"
-        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir))
+        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir), passphrase=self.TEST_PASSPHRASE)
         
         # Try to verify with tampered data
         tampered_data = "Hello, Tampered!"
@@ -206,10 +329,15 @@ class TestTamperingDetection:
     def test_tampered_signature(self, tmp_path):
         """Test that tampered signature fails verification."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         data = "Hello, World!"
-        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir))
+        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir), passphrase=self.TEST_PASSPHRASE)
         
         # Tamper with signature (flip a byte)
         tampered_signature = signature[:-1] + bytes([signature[-1] ^ 0xFF])
@@ -218,11 +346,21 @@ class TestTamperingDetection:
     def test_wrong_agent_signature(self, tmp_path):
         """Test that signature from wrong agent fails verification."""
         base_dir = tmp_path / ".avcpm"
-        agent1 = create_agent("Agent 1", "agent1@example.com", base_dir=str(base_dir))
-        agent2 = create_agent("Agent 2", "agent2@example.com", base_dir=str(base_dir))
+        agent1 = create_agent(
+            "Agent 1", 
+            "agent1@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
+        agent2 = create_agent(
+            "Agent 2", 
+            "agent2@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         data = "Hello, World!"
-        signature = sign_data(agent1["agent_id"], data, base_dir=str(base_dir))
+        signature = sign_data(agent1["agent_id"], data, base_dir=str(base_dir), passphrase=self.TEST_PASSPHRASE)
         
         # Try to verify with wrong agent
         assert verify_signature(agent2["agent_id"], data, signature, base_dir=str(base_dir)) is False
@@ -230,7 +368,12 @@ class TestTamperingDetection:
     def test_empty_signature(self, tmp_path):
         """Test that empty signature fails verification."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent", 
+            "test@example.com", 
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         data = "Hello, World!"
         assert verify_signature(agent["agent_id"], data, b"", base_dir=str(base_dir)) is False
@@ -238,6 +381,8 @@ class TestTamperingDetection:
 
 class TestCommitIntegration:
     """Tests for commit signing and verification."""
+    
+    TEST_PASSPHRASE = "secure_test_pass_123"
     
     def test_calculate_changes_hash(self):
         """Test changes hash calculation."""
@@ -271,9 +416,14 @@ class TestCommitIntegration:
         assert hash1 == hash2
     
     def test_sign_commit(self, tmp_path):
-        """Test signing commit metadata."""
+        """Test signing commit metadata with passphrase."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent",
+            "test@example.com",
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         changes = [
             {"file": "test.py", "checksum": "abc123"},
@@ -285,7 +435,8 @@ class TestCommitIntegration:
             datetime.now().isoformat(),
             changes,
             agent["agent_id"],
-            base_dir=str(base_dir)
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
         )
         
         assert "commit_id" in commit_meta
@@ -298,7 +449,12 @@ class TestCommitIntegration:
     def test_verify_commit_signature(self, tmp_path):
         """Test verifying commit signature."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent",
+            "test@example.com",
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         changes = [
             {"file": "test.py", "checksum": "abc123"},
@@ -312,7 +468,8 @@ class TestCommitIntegration:
             timestamp,
             changes,
             agent["agent_id"],
-            base_dir=str(base_dir)
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
         )
         
         # Verify the signature
@@ -330,7 +487,12 @@ class TestCommitIntegration:
     def test_commit_tampering_detection(self, tmp_path):
         """Test that tampered commit fails verification."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent",
+            "test@example.com",
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         changes = [
             {"file": "test.py", "checksum": "abc123"},
@@ -344,7 +506,8 @@ class TestCommitIntegration:
             timestamp,
             changes,
             agent["agent_id"],
-            base_dir=str(base_dir)
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
         )
         
         # Tamper with the changes
@@ -368,7 +531,12 @@ class TestCommitIntegration:
     def test_commit_wrong_timestamp(self, tmp_path):
         """Test that wrong timestamp fails verification."""
         base_dir = tmp_path / ".avcpm"
-        agent = create_agent("Test Agent", "test@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Test Agent",
+            "test@example.com",
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         changes = [
             {"file": "test.py", "checksum": "abc123"}
@@ -381,7 +549,8 @@ class TestCommitIntegration:
             timestamp,
             changes,
             agent["agent_id"],
-            base_dir=str(base_dir)
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
         )
         
         # Verify with wrong timestamp
@@ -400,12 +569,19 @@ class TestCommitIntegration:
 class TestIntegration:
     """Integration tests with Phase 1 modules."""
     
+    TEST_PASSPHRASE = "secure_test_pass_123"
+    
     def test_integration_with_configurable_base_dir(self, tmp_path):
         """Test that all functions work with configurable base_dir."""
         base_dir = tmp_path / "custom_avcpm"
         
         # Create agent
-        agent = create_agent("Integration Agent", "integration@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "Integration Agent",
+            "integration@example.com",
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         # List agents
         agents = list_agents(base_dir=str(base_dir))
@@ -420,7 +596,7 @@ class TestIntegration:
         assert public_key is not None
         
         # Sign data
-        signature = sign_data(agent["agent_id"], "test data", base_dir=str(base_dir))
+        signature = sign_data(agent["agent_id"], "test data", base_dir=str(base_dir), passphrase=self.TEST_PASSPHRASE)
         assert signature is not None
         
         # Verify signature
@@ -431,7 +607,12 @@ class TestIntegration:
         base_dir = tmp_path / ".avcpm"
         
         # Create agent
-        agent = create_agent("File Agent", "file@example.com", base_dir=str(base_dir))
+        agent = create_agent(
+            "File Agent",
+            "file@example.com",
+            base_dir=str(base_dir),
+            passphrase=self.TEST_PASSPHRASE
+        )
         
         # Create a test file
         test_file = tmp_path / "test_file.txt"
@@ -440,7 +621,7 @@ class TestIntegration:
         # Sign the file
         with open(test_file, "rb") as f:
             data = f.read()
-        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir))
+        signature = sign_data(agent["agent_id"], data, base_dir=str(base_dir), passphrase=self.TEST_PASSPHRASE)
         
         # Verify the signature
         assert verify_signature(agent["agent_id"], data, signature, base_dir=str(base_dir)) is True

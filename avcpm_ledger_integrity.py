@@ -49,7 +49,7 @@ class IntegrityReport:
 
 def calculate_entry_hash(entry: Dict) -> str:
     """
-    Calculate SHA256 hash of a ledger entry (excluding entry_hash itself).
+    Calculate SHA256 hash of a ledger entry (excluding entry_hash and internal fields).
     
     Args:
         entry: Ledger entry dictionary
@@ -57,8 +57,8 @@ def calculate_entry_hash(entry: Dict) -> str:
     Returns:
         str: SHA256 hex digest of the entry content
     """
-    # Create a copy without the entry_hash field for calculation
-    entry_copy = {k: v for k, v in entry.items() if k != 'entry_hash'}
+    # Create a copy without the entry_hash field and any internal underscore-prefixed fields
+    entry_copy = {k: v for k, v in entry.items() if k != 'entry_hash' and not k.startswith('_')}
     
     # Canonical JSON representation (sorted keys for consistency)
     content = json.dumps(entry_copy, sort_keys=True, indent=None, separators=(',', ':'))

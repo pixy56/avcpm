@@ -31,10 +31,13 @@ def get_challenges_dir(base_dir=DEFAULT_BASE_DIR):
     return os.path.join(base_dir, "agent_challenges")
 
 
+from avcpm_security import protect_avcpm_directory, safe_makedirs
+
 def ensure_auth_directories(base_dir=DEFAULT_BASE_DIR):
-    """Ensure authentication directories exist."""
-    os.makedirs(get_sessions_dir(base_dir), exist_ok=True)
-    os.makedirs(get_challenges_dir(base_dir), exist_ok=True)
+    """Ensure authentication directories exist with symlink protection."""
+    protect_avcpm_directory(base_dir)
+    safe_makedirs(get_sessions_dir(base_dir), base_dir, exist_ok=True)
+    safe_makedirs(get_challenges_dir(base_dir), base_dir, exist_ok=True)
 
 
 def generate_challenge():
@@ -110,7 +113,7 @@ def clear_challenge(agent_id, base_dir=DEFAULT_BASE_DIR):
         os.remove(challenge_file)
 
 
-def sign_challenge_response(challenge, agent_id, base_dir=DEFAULT_BASE_DIR):
+def sign_challenge_response(challenge, agent_id, base_dir=DEFAULT_BASE_DIR, passphrase=None):
     """
     Sign a challenge response using the agent's private key.
     
@@ -118,15 +121,22 @@ def sign_challenge_response(challenge, agent_id, base_dir=DEFAULT_BASE_DIR):
         challenge: The challenge string
         agent_id: The agent ID
         base_dir: Base directory for AVCPM
+        passphrase: REQUIRED passphrase for decrypting the encrypted private key
     
     Returns:
         str: Hex-encoded signature
+    
+    Raises:
+        ValueError: If passphrase is not provided
     """
     from avcpm_agent import sign_data
     
+    if not passphrase:
+        raise ValueError(f"Passphrase is required to sign challenge for agent {agent_id}")
+    
     # Create payload: "AVCPM_AUTH:<agent_id>:<challenge>"
     payload = f"AVCPM_AUTH:{agent_id}:{challenge}"
-    signature = sign_data(agent_id, payload, base_dir)
+    signature = sign_data(agent_id, payload, base_dir, passphrase)
     return signature.hex()
 
 

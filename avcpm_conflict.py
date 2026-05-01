@@ -22,6 +22,7 @@ from avcpm_branch import (
     get_current_branch,
     DEFAULT_BASE_DIR
 )
+from avcpm_security import safe_makedirs, safe_write_text, safe_read_text
 
 # Conflict statuses
 CONFLICT_STATUS_OPEN = "open"
@@ -71,11 +72,10 @@ def _read_file_content(filepath):
         return ""
 
 
-def _write_file_content(filepath, content):
-    """Write content to file, creating parent directories if needed."""
-    os.makedirs(os.path.dirname(filepath) if os.path.dirname(filepath) else ".", exist_ok=True)
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(content)
+def _write_file_content(filepath, content, base_dir=DEFAULT_BASE_DIR):
+    """Write content to file with symlink protection, creating parent directories if needed."""
+    safe_makedirs(os.path.dirname(filepath) if os.path.dirname(filepath) else ".", base_dir, exist_ok=True)
+    safe_write_text(filepath, content, base_dir)
 
 
 def list_modified_files(branch, since_commit=None, base_dir=DEFAULT_BASE_DIR):
@@ -436,7 +436,7 @@ def merge_three_way(base_content, a_content, b_content):
     return result
 
 
-def merge_files(base_file, a_file, b_file, output_file):
+def merge_files(base_file, a_file, b_file, output_file, base_dir=DEFAULT_BASE_DIR):
     """
     Merge files with conflict markers.
     
@@ -445,6 +445,7 @@ def merge_files(base_file, a_file, b_file, output_file):
         a_file: Path to file in branch A
         b_file: Path to file in branch B
         output_file: Path to write merged output
+        base_dir: Base directory for AVCPM
         
     Returns:
         dict: {"success": bool, "has_conflict": bool, "output_file": str}
@@ -465,12 +466,12 @@ def merge_files(base_file, a_file, b_file, output_file):
         merged = a_content if a_content else b_content
         if merged is None:
             merged = ""
-        _write_file_content(output_file, merged)
+        _write_file_content(output_file, merged, base_dir)
         return {"success": True, "has_conflict": False, "output_file": output_file}
     
     # Perform three-way merge
     result = merge_three_way(base_content, a_content, b_content)
-    _write_file_content(output_file, result["merged_content"])
+    _write_file_content(output_file, result["merged_content"], base_dir)
     
     return {
         "success": True,
@@ -509,7 +510,7 @@ def detect_conflicts(branch_a, branch_b, base_dir=DEFAULT_BASE_DIR):
     
     conflicts = []
     conflicts_dir = get_conflicts_dir(base_dir)
-    os.makedirs(conflicts_dir, exist_ok=True)
+    safe_makedirs(conflicts_dir, base_dir, exist_ok=True)
     
     for file_path in overlapping:
         # Get file content at base, branch_a, branch_b

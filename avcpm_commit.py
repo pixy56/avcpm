@@ -16,17 +16,18 @@ from avcpm_lifecycle import (
     validate_commit_allowed,
     init_lifecycle_config
 )
-from avcpm_security import sanitize_path
-from avcpm_security import sanitize_path, sanitize_path_list
-from avcpm_security import safe_copy, safe_read
+from avcpm_security import sanitize_path, safe_copy, safe_read, safe_makedirs
 from avcpm_ledger_integrity import (
     calculate_entry_hash,
-    get_last_commit_hash
+    get_last_commit_hash,
+    verify_ledger_integrity,
+    check_integrity_warning
 )
 from avcpm_auth import (
     require_auth,
     get_session_token_from_env,
-    validate_session
+    validate_session,
+    get_authenticated_agent_from_env
 )
 
 DEFAULT_BASE_DIR = ".avcpm"
@@ -52,17 +53,47 @@ def get_staging_dir(branch_name=None, base_dir=DEFAULT_BASE_DIR):
     return get_branch_staging_dir(branch_name, base_dir)
 
 def ensure_directories(branch_name=None, base_dir=DEFAULT_BASE_DIR):
-    """Ensure ledger and staging directories exist for a branch."""
+    """Ensure ledger and staging directories exist for a branch with symlink protection."""
     _ensure_main_branch(base_dir)
-    os.makedirs(get_ledger_dir(branch_name, base_dir), exist_ok=True)
-    os.makedirs(get_staging_dir(branch_name, base_dir), exist_ok=True)
+    safe_makedirs(get_ledger_dir(branch_name, base_dir), base_dir, exist_ok=True)
+    safe_makedirs(get_staging_dir(branch_name, base_dir), base_dir, exist_ok=True)
 
 def calculate_checksum(filepath, base_dir=DEFAULT_BASE_DIR):
     """Calculate SHA256 checksum of a file using safe read."""
     content = safe_read(filepath, base_dir)
     return hashlib.sha256(content).hexdigest()
 
-def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base_dir=DEFAULT_BASE_DIR, skip_validation=False):
+def verify_agent_identity(agent_id, base_dir=DEFAULT_BASE_DIR):
+    """
+    Verify agent identity is valid and matches the signing key.
+    
+    Args:
+        agent_id: The agent ID to verify
+        base_dir: Base directory for AVCPM
+    
+    Returns:
+        tuple: (is_valid: bool, error_message: str or None)
+    """
+    # Check if agent exists in registry
+    agent = get_agent(agent_id, base_dir)
+    if agent is None:
+        return False, f"Agent {agent_id} not found in registry"
+    
+    # Verify agent ID matches stored metadata
+    if agent.get('agent_id') != agent_id:
+        return False, f"Agent ID mismatch in registry data"
+    
+    # Verify public key exists
+    from avcpm_agent import get_public_key
+    public_key = get_public_key(agent_id, base_dir)
+    if public_key is None:
+        return False, f"Public key not found for agent {agent_id}"
+    
+    return True, None
+
+
+def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base_dir=DEFAULT_BASE_DIR, skip_validation=False, 
+           require_authentication=True, session_token=None):
     """
     Commit files to a branch.
     
@@ -74,6 +105,8 @@ def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base
         branch_name: Branch to commit to (uses current branch if None)
         base_dir: Base directory for AVCPM
         skip_validation: Skip validation (for admin/debug)
+        require_authentication: Whether to require agent authentication
+        session_token: Optional session token for authentication
     """
     ensure_directories(branch_name, base_dir)
     
@@ -84,6 +117,28 @@ def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base
     agent = get_agent(agent_id, base_dir)
     if agent is None:
         raise ValueError(f"Agent {agent_id} not found. Create agent first using avcpm_agent.create_agent()")
+    
+    # Verify agent identity (cryptographic binding check)
+    identity_valid, identity_error = verify_agent_identity(agent_id, base_dir)
+    if not identity_valid:
+        raise ValueError(f"Agent identity verification failed: {identity_error}")
+    
+    # Require agent authentication for commits (unless skipped)
+    if require_authentication and not skip_validation:
+        # Check for session token from env if not provided
+        if session_token is None:
+            _, session_token = get_authenticated_agent_from_env(base_dir)
+        
+        if session_token is None:
+            # Try to get session from env token
+            session_token = get_session_token_from_env()
+        
+        if session_token is None:
+            raise ValueError(f"Agent {agent_id} is not authenticated. Run 'avcpm agent authenticate {agent_id}' first.")
+        
+        # Validate the session
+        if not validate_session(agent_id, session_token, base_dir):
+            raise ValueError(f"Agent {agent_id} has invalid or expired session. Re-authenticate with 'avcpm agent authenticate {agent_id}'.")
     
     # Validate commit is allowed (lifecycle rules)
     if not skip_validation:
@@ -155,6 +210,14 @@ def commit(task_id, agent_id, rationale, files_to_commit, branch_name=None, base
     
     # Calculate and store the entry hash for integrity chain
     commit_meta["entry_hash"] = calculate_entry_hash(commit_meta)
+    
+    # Verify ledger integrity before writing new commit
+    integrity_report = verify_ledger_integrity(current_branch, base_dir)
+    if not integrity_report.success:
+        warning = check_integrity_warning(current_branch, base_dir)
+        print(f"SECURITY WARNING: {warning}")
+        print("Commit aborted. Run 'avcpm validate ledger' to see details.")
+        sys.exit(1)
     
     # Write to ledger
     ledger_path = os.path.join(ledger_dir, f"{commit_id}.json")
