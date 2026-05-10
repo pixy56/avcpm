@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>OpenClaw Knowledge Management System</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 40px; line-height: 1.6; }
+  h1 { font-size: 28px; border-bottom: 2px solid #333; padding-bottom: 10px; margin-top: 0; }
+  h2 { font-size: 22px; color: #333; margin-top: 30px; }
+  h3 { font-size: 18px; color: #555; }
+  pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+  code { background: #f5f5f5; padding: 2px 5px; border-radius: 3px; font-size: 14px; }
+  pre code { padding: 0; background: none; }
+  table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+  td, th { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; }
+  tr:nth-child(even) { background: #f9f9f9; }
+  ul { margin: 10px 0; }
+  li { margin: 5px 0; }
+  .page-break { page-break-after: always; border: none; margin: 0; }
+  @page { size: A4; margin: 20mm; }
+  @media print { .page-break { page-break-after: always; } }
+</style>
+</head>
+<body>
+<h1>OpenClaw Knowledge Management System</h1><br><br><strong>Presenter:</strong> Matt  
+<strong>Date:</strong> 2026-05-09  
+<strong>System:</strong> OpenClaw + Graphify + LLM Wiki<br><br><hr class="page-break"/><br><br><h2>Slide 1: Executive Summary</h2><br><br><strong>What We Built:</strong> A fully automated, AI-powered personal knowledge management system that turns your workspace into a living, queryable knowledge base.<br><br><strong>Core Philosophy:</strong><ul>
+<li>Human curates what goes in</li>
+<li>LLM does all maintenance</li>
+<li>Knowledge compounds over time</li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 2: Feature List</h2><br><br><h3>Knowledge Capture</h3><ul>
+<li>✅ <strong>Raw Sources</strong> — Drop articles, PDFs, transcripts, code into <code>raw/</code></li>
+<li>✅ <strong>Auto-Ingest</strong> — AI reads, summarizes, and files sources every 6 hours</li>
+<li>✅ <strong>GitHub Integration</strong> — Pull code repos for analysis and review</li></ul><br><br><h3>Knowledge Organization</h3><ul>
+<li>✅ <strong>Graphify Knowledge Graph</strong> — Auto-extracts entities, relationships, clusters from all files</li>
+<li>2,251 nodes, 3,366 edges, 209 communities</li>
+<li>71.5× token reduction vs naive file-reading</li>
+<li>✅ <strong>LLM Wiki</strong> — Markdown articles with <code>[[wikilinks]]</code> and YAML frontmatter</li>
+<li>Sources, Concepts, Entities, Comparisons</li>
+<li>✅ <strong>Memory System</strong> — Daily logs + curated long-term <code>MEMORY.md</code></li></ul><br><br><h3>Knowledge Retrieval</h3><ul>
+<li>✅ <strong>Semantic Search</strong> — sqlite-vec + model2vec hybrid search (78 docs indexed)</li>
+<li>✅ <strong>Graph Queries</strong> — BFS/DFS traversal of knowledge graph</li>
+<li>✅ <strong>Wiki Index</strong> — Master index linking all pages</li>
+<li>✅ <strong>MCP Server</strong> — Native <code>graph_query</code> tool for agents</li></ul><br><br><h3>Automation</h3><ul>
+<li>✅ <strong>Daily Graph Updates</strong> — <code>graphify update .</code> at 4:00 AM (AST-only, no API cost)</li>
+<li>✅ <strong>6-Hour Wiki Ingest</strong> — Checks <code>raw/</code> for new sources</li>
+<li>✅ <strong>6-Hour Log Review</strong> — Follows up on pending items</li>
+<li>✅ <strong>Weekly Lint</strong> — Broken links, orphans, stale pages</li>
+<li>✅ <strong>Heartbeat Checks</strong> — Periodic system maintenance</li></ul><br><br><h3>Agent Team Coordination</h3><ul>
+<li>✅ <strong>Multi-Agent Reviews</strong> — 4 specialized agents (Architecture, Security, Performance, Testing)</li>
+<li>✅ <strong>Unified Reports</strong> — Compiled into single prioritized report</li>
+<li>✅ <strong>Wiki Integration</strong> — Reports auto-ingested into knowledge base</li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 3: Architecture Overview</h2><br><br><pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                        OPENCLAW WORKSPACE                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │
+│  │   Raw Input  │───▶│   Ingest     │───▶│   LLM Wiki   │     │
+│  │   (raw/)     │    │   Pipeline   │    │   (wiki/)    │     │
+│  │              │    │              │    │              │     │
+│  │ • Articles   │    │ AI reads     │    │ • Sources    │     │
+│  │ • PDFs       │    │ • Summarizes │    │ • Concepts   │     │
+│  │ • Code       │    │ • Cross-ref  │    │ • Entities   │     │
+│  │ • Media      │    │ • Updates    │    │ • Compare    │     │
+│  └──────────────┘    │   index      │    └──────────────┘     │
+│                      └──────────────┘           ▲             │
+│                                                   │             │
+│  ┌───────────────────────────────────────────────┐│             │
+│  │              GRAPHIFY KNOWLEDGE GRAPH           ││             │
+│  │                                                ││             │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐   ││             │
+│  │  │  Detect  │─▶│ Extract  │─▶│  Build   │   ││             │
+│  │  │ (scan)   │  │ (AST+LLM)│  │  Graph   │   ││             │
+│  │  └──────────┘  └──────────┘  └────┬─────┘   ││             │
+│  │                                   ▼          ││             │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐   ││             │
+│  │  │ Cluster  │─▶│ Analyze  │─▶│  Report  │   ││             │
+│  │  │(Leiden)  │  │(god nodes│  │(GRAPH_   │   ││             │
+│  │  └──────────┘  │surprises)│  │ REPORT)  │   ││             │
+│  │                └──────────┘  └──────────┘   ││             │
+│  └───────────────────────────────────────────────┘│             │
+│                      │                            │             │
+│                      ▼                            │             │
+│  ┌────────────────────────────────────────────────┴────────┐  │
+│  │                     MCP SERVER                           │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐             │  │
+│  │  │  graph_  │  │  graph_  │  │  graph_  │             │  │
+│  │  │  query   │  │  path    │  │ explain  │             │  │
+│  │  └──────────┘  └──────────┘  └──────────┘             │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                      │                                         │
+│                      ▼                                         │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │                    AGENT INTERFACE                       │  │
+│  │                                                        │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐  │  │
+│  │  │  Search  │  │  Query   │  │  Multi-Agent Review  │  │  │
+│  │  │  (vec)   │  │  (graph) │  │  (arch/sec/perf/test)│  │  │
+│  │  └──────────┘  └──────────┘  └──────────────────────┘  │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                      │                                         │
+│                      ▼                                         │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │                  MEMORY SYSTEM                           │  │
+│  │                                                        │  │
+│  │  ┌──────────────┐      ┌──────────────┐              │  │
+│  │  │ Daily Logs   │      │  Curated     │              │  │
+│  │  │ (memory/*.md)│─────▶│  MEMORY.md   │              │  │
+│  │  └──────────────┘      └──────────────┘              │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │                  AUTOMATION LAYER                        │  │
+│  │                                                        │  │
+│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐        │  │
+│  │  │ Daily      │ │ 6-Hour     │ │ 6-Hour     │        │  │
+│  │  │ Graphify   │ │ Wiki       │ │ Log        │        │  │
+│  │  │ Update     │ │ Ingest     │ │ Review     │        │  │
+│  │  │ (4 AM)     │ │ (6-hourly) │ │ (6-hourly) │        │  │
+│  │  └────────────┘ └────────────┘ └────────────┘        │  │
+│  │  ┌────────────────────────────────────────────┐        │  │
+│  │  │ Weekly Lint (Monday 5 AM)                   │        │  │
+│  │  └────────────────────────────────────────────┘        │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 4: Data Flow Diagram</h2><br><br><pre><code>USER / EXTERNAL
+      │
+      │ 1. Drop source in raw/
+      │ 2. GitHub repo synced
+      │ 3. Ask question
+      ▼
+┌─────────────────┐
+│   RAW INPUTS    │
+│                 │
+│ • raw/*.md      │
+│ • raw/*.pdf     │
+│ • Code repos    │
+│ • Session notes │
+└────────┬────────┘
+         │
+         ├────────────────────────┐
+         │                        │
+         ▼                        ▼
+┌─────────────────┐    ┌─────────────────┐
+│  GRAPHIFY       │    │  LLM WIKI       │
+│  (Auto-Indexer) │    │  (Auto-Author)  │
+│                 │    │                 │
+│ • AST parse     │    │ • Read source   │
+│ • Extract       │    │ • Summarize     │
+│   entities      │    │ • Cross-ref     │
+│ • Build graph   │    │ • Write pages   │
+│ • Detect        │    │ • Update index  │
+│   communities   │    │ • Update log    │
+└────────┬────────┘    └────────┬────────┘
+         │                        │
+         │     ┌──────────────────┘
+         │     │
+         ▼     ▼
+┌─────────────────┐
+│  KNOWLEDGE BASE │
+│                 │
+│ • graph.json    │  ← Machine-readable
+│ • wiki/*.md     │  ← Human-readable
+│ • index.md      │  ← Navigation
+│ • MEMORY.md     │  ← Long-term memory
+└────────┬────────┘
+         │
+         ├────────────────────────┐
+         │                        │
+         ▼                        ▼
+┌─────────────────┐    ┌─────────────────┐
+│  QUERY METHODS  │    │  SEARCH METHODS │
+│                 │    │                 │
+│ • graph_query   │    │ • Semantic      │
+│ • graph_path    │    │   (sqlite-vec)  │
+│ • graph_explain │    │ • Keyword       │
+│ • BFS/DFS       │    │   (grep)        │
+└────────┬────────┘    └────────┬────────┘
+         │                        │
+         └──────────┬─────────────┘
+                    │
+                    ▼
+         ┌─────────────────┐
+         │  AGENT ANSWERS  │
+         │                 │
+         │ • Synthesized   │
+         │   with citations│
+         │ • New knowledge │
+         │   filed back    │
+         │ • Actions taken │
+         │   automatically │
+         └─────────────────┘
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 5: Component Deep Dive — Graphify</h2><br><br><h3>What It Is</h3>
+An open-source AI coding-assistant skill that converts any folder into a <strong>queryable knowledge graph</strong>.<br><br><h3>7-Stage Pipeline</h3><br><br><pre><code>1. DETECT      → Scan directory, filter by extension, respect .graphifyignore
+2. EXTRACT     → Three-pass extraction:
+                   Pass 1: AST parsing (29 languages) — deterministic, zero LLM cost
+                   Pass 2: Whisper transcription (audio/video)
+                   Pass 3: LLM subagents (docs, PDFs, images)
+3. BUILD GRAPH → NetworkX graph with confidence tags:
+                   EXTRACTED (1.0) — explicit in source
+                   INFERRED (0.0-1.0) — reasonable inference
+                   AMBIGUOUS — flag for review
+4. CLUSTER     → Leiden community detection (no embeddings, no vector DB)
+5. ANALYZE     → Identify "god nodes" (highest-degree hubs), surprising connections
+6. REPORT      → Generate GRAPH_REPORT.md (plain-language summary)
+7. EXPORT      → Interactive HTML, Obsidian vault, MCP server, Neo4j
+</code></pre><br><br><h3>Key Metrics (This Workspace)</h3><ul>
+<li><strong>2,251 nodes</strong> — entities, functions, files, concepts</li>
+<li><strong>3,366 edges</strong> — relationships, calls, references</li>
+<li><strong>209 communities</strong> — clustered knowledge domains</li>
+<li><strong>86% EXTRACTED</strong> — high-confidence edges</li>
+<li><strong>71.5× token reduction</strong> — vs reading raw files</li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 6: Component Deep Dive — LLM Wiki</h2><br><br><h3>What It Is</h3>
+A knowledge management pattern originated by Andrej Karpathy. Instead of RAG (retrieving chunks every query), an LLM incrementally compiles sources into a <strong>persistent, interlinked markdown wiki</strong>.<br><br><h3>Three-Layer Architecture</h3><br><br><pre><code>┌─────────────────────────────────────┐
+│  LAYER 3: SCHEMA (AGENTS.md/WIKI.md)│
+│  Configuration & conventions        │
+│  • Folder structure                 │
+│  • Page templates                   │
+│  • Ingest/query/lint workflows      │
+└─────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────┐
+│  LAYER 2: THE WIKI (wiki/)          │
+│  LLM-generated knowledge            │
+│                                     │
+│  • wiki/index.md — Master index     │
+│  • wiki/log.md — Changelog          │
+│  • wiki/sources/ — Source summaries │
+│  • wiki/concepts/ — Abstract ideas  │
+│  • wiki/entities/ — People/tools  │
+│  • wiki/comparisons/ — Side-by-side │
+└─────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────┐
+│  LAYER 1: RAW SOURCES (raw/)        │
+│  Immutable input                    │
+│  • Articles, PDFs, transcripts        │
+│  • Code repositories                │
+│  • Research documents               │
+└─────────────────────────────────────┘
+</code></pre><br><br><h3>Core Operations</h3>
+1. <strong>Ingest</strong> — AI reads source → writes summary → cascades updates → updates index + log
+2. <strong>Query</strong> — AI reads index → finds relevant pages → synthesizes answer with citations
+3. <strong>Lint</strong> — Health check for contradictions, orphans, stale claims, broken links<br><br><h3>Page Template (Every Wiki Page)</h3>
+<pre><code>yaml
+<hr class="page-break"/>
+title: "Page Title"
+type: concept | entity | source | comparison
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+tags: []
+status: draft | stable | archived
+source_refs: []
+related:<ul>
+<li>[[Linked Page]]</li></ul>
+<hr class="page-break"/>
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 7: Component Deep Dive — Automation Layer</h2><br><br><h3>Cron Jobs (4 Active)</h3><br><br><pre><code>┌────────────────────────────────────────┐
+│  graphify-daily-update                 │
+│  Schedule: 0 4 <em> </em> * (4:00 AM CDT)     │
+│  Action: graphify update .              │
+│  Cost: FREE (AST-only, no LLM calls)   │
+│  Purpose: Keep code graph current        │
+└────────────────────────────────────────┘<br><br>┌────────────────────────────────────────┐
+│  raw-check-ingest                      │
+│  Schedule: 0 <em>/6 </em> <em> </em> (every 6 hours)  │
+│  Action: Scan raw/ → ingest to wiki     │
+│  Purpose: Auto-process new sources      │
+└────────────────────────────────────────┘<br><br>┌────────────────────────────────────────┐
+│  wiki-log-review                       │
+│  Schedule: 0 <em>/6 </em> <em> </em> (every 6 hours)  │
+│  Action: Check log.md for pending items │
+│  Purpose: Follow up on TODOs           │
+└────────────────────────────────────────┘<br><br>┌────────────────────────────────────────┐
+│  wiki-weekly-lint                      │
+│  Schedule: 0 5 <em> </em> 1 (Monday 5 AM)     │
+│  Action: Broken links, orphans, stale   │
+│  Purpose: Wiki health check            │
+└────────────────────────────────────────┘
+</code></pre><br><br><h3>Trigger Flow</h3>
+<pre><code>New source in raw/
+       │
+       ▼
+┌──────────────┐
+│ Heartbeat    │◄──── Checks every ~30 min
+│ or Cron      │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│ Ingest Agent │
+│ (kimi-k2.6)  │
+└──────┬───────┘
+       │
+       ├───────▶ Create source page
+       ├───────▶ Create/update concepts
+       ├───────▶ Create/update entities
+       ├───────▶ Update index.md
+       └───────▶ Append to log.md
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 8: Component Deep Dive — Multi-Agent Review System</h2><br><br><h3>Review Team Structure</h3><br><br><pre><code>┌─────────────────────────────────────────┐
+│           ORCHESTRATOR (You / Main)       │
+│           Coordinates, delegates           │
+└──────────────┬────────────────────────────┘
+               │
+       ┌───────┼───────┐
+       │       │       │
+       ▼       ▼       ▼          ▼
+┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+│ARCHITECT│ │SECURITY │ │PERFORMANCE│ │TESTING │
+│Reviewer  │ │Reviewer │ │Reviewer  │ │Reviewer │
+│(kimi)   │ │(kimi)   │ │(kimi)    │ │(kimi)   │
+└────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘
+     │           │           │           │
+     └───────────┴─────┬─────┴───────────┘
+                       │
+                       ▼
+            ┌─────────────────────┐
+            │  UNIFIED REPORT     │
+            │  • Priority matrix  │
+            │  • Cross-cutting    │
+            │    findings         │
+            │  • Action items     │
+            └──────────┬──────────┘
+                       │
+                       ▼
+            ┌─────────────────────┐
+            │  WIKI INGEST        │
+            │  • Source page      │
+            │  • Concept pages    │
+            │  • Entity pages     │
+            │  • Log entry        │
+            └─────────────────────┘
+</code></pre><br><br><h3>AVCPM Review Results</h3><br><br><tr><td>Reviewer</td><td>Runtime</td><td>Tokens</td><td>Key Finding</td></tr>
+<tr><td>----------</td><td>---------</td><td>--------</td><td>-------------</td></tr>
+<tr><td>Architecture</td><td>1m21s</td><td>221K</td><td>CLI/library conflation, non-unique commit IDs</td></tr>
+<tr><td>Security</td><td>4m2s</td><td>110K</td><td><strong>3 Critical</strong> path traversal vulnerabilities</td></tr>
+<tr><td>Performance</td><td>1m56s</td><td>352K</td><td>No caching, no file locking, O(n²) operations</td></tr>
+<tr><td>Testing</td><td>2m2s</td><td>385K</td><td>5 modules untested, mixed frameworks</td></tr><br><br><hr class="page-break"/><br><br><h2>Slide 9: Integration Points</h2><br><br><h3>How Components Connect</h3><br><br><pre><code>┌─────────────────────────────────────────────────────────────┐
+│  EXTERNAL INPUTS                                            │
+│  • User messages  • GitHub repos  • Raw files  • Web pages  │
+└──────────────────────────┬────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  OPENCLAW GATEWAY                                           │
+│  • Routes messages to sessions                              │
+│  • Manages models (kimi-k2.6, ollama, etc.)                 │
+│  • Handles heartbeats                                       │
+└──────────────────────────┬────────────────────────────────────┘
+                           │
+           ┌───────────────┼───────────────┐
+           │               │               │
+           ▼               ▼               ▼
+    ┌──────────┐   ┌──────────┐   ┌──────────┐
+    │  Main    │   │  Subagent│   │  Cron    │
+    │  Session │   │  Session │   │  Jobs    │
+    │  (chat)  │   │  (tasks) │   │          │
+    └────┬─────┘   └────┬─────┘   └────┬─────┘
+         │              │              │
+         └──────────────┼──────────────┘
+                        │
+                        ▼
+         ┌──────────────────────────────┐
+         │     KNOWLEDGE GRAPH          │
+         │     (Graphify)               │
+         │  • graph.json                │
+         │  • GRAPH_REPORT.md           │
+         │  • Interactive HTML          │
+         └──────────────┬───────────────┘
+                        │
+         ┌──────────────┼──────────────┐
+         │              │              │
+         ▼              ▼              ▼
+    ┌────────┐   ┌────────┐   ┌────────┐
+    │  MCP   │   │  Wiki  │   │  Search│
+    │ Server │   │ Pages  │   │ Index  │
+    │(tools) │   │(human) │   │(hybrid)│
+    └────┬───┘   └────┬───┘   └────┬───┘
+         │            │            │
+         └────────────┴────────────┘
+                      │
+                      ▼
+         ┌──────────────────────────────┐
+         │      AGENT RESPONSE          │
+         │  • Answers with citations    │
+         │  • Suggests actions          │
+         │  • Updates wiki/graph        │
+         └──────────────────────────────┘
+</code></pre><br><br><h3>MCP Server Registration</h3>
+<pre><code>json
+{
+  "mcpServers": {
+    "graphify": {
+      "command": ".../python",
+      "args": ["-c", "from graphify.serve import serve; ..."],
+      "description": "Graphify knowledge graph: query, explain, path"
+    },
+    "openclaw-wiki": {
+      "command": ".../python3",
+      "args": ["tools/mcp-server.py"],
+      "description": "OpenClaw wiki: read, write, search, ingest, lint"
+    }
+  }
+}
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 10: Use Case — AVCPM Code Review</h2><br><br><h3>Scenario</h3>
+"Review my AVCPM project on GitHub. I want a comprehensive report."<br><br><h3>What Happened</h3><br><br><pre><code>1. INGEST
+   ├─ Clone/sync repo
+   ├─ Drop report into raw/
+   └─ Graphify auto-indexes all code<br><br>2. REVIEW
+   ├─ Spawn 4 specialized agents
+   ├─ Each reads all source files
+   └─ Returns structured review<br><br>3. COMPILE
+   ├─ Merge 4 reports into unified document
+   ├─ Priority matrix (P0/P1/P2)
+   └─ Cross-cutting findings<br><br>4. PERSIST
+   ├─ Save to reviews/
+   ├─ Copy to raw/
+   ├─ Ingest into wiki
+   │   ├─ Source page
+   │   ├─ Concept pages (code review, security audit, path traversal)
+   │   └─ Entity page (AVCPM project)
+   └─ Update index + log<br><br>5. PUSH
+   └─ Commit + push to GitHub (rebased)
+</code></pre><br><br><h3>Result</h3><ul>
+<li><strong>17,000-word report</strong> with 19 findings</li>
+<li><strong>3 Critical</strong> security vulnerabilities identified</li>
+<li><strong>Wiki updated</strong> with 6 new pages</li>
+<li><strong>All changes version-controlled</strong></li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 11: Key Metrics Dashboard</h2><br><br><pre><code>┌─────────────────────────────────────────────────────────────┐
+│                    SYSTEM METRICS                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  KNOWLEDGE GRAPH             │  WIKI                        │
+│  • 2,251 nodes               │  • 16+ pages                 │
+│  • 3,366 edges               │  • 4 categories               │
+│  • 209 communities           │  • 78 documents indexed        │
+│  • 86% high-confidence        │                              │
+│                                                              │
+│  AUTOMATION                  │  REVIEWS                     │
+│  • 4 cron jobs active        │  • 4 specialized agents      │
+│  • 6-hourly wiki checks      │  • 17,000-word report        │
+│  • Daily graph updates       │  • 19 findings               │
+│  • Weekly lint              │  • 8 P0 action items         │
+│                                                              │
+│  SEARCH                      │  STORAGE                     │
+│  • Hybrid semantic+keyword   │  • 2.4 MB backup             │
+│  • 78 docs indexed          │  • 68 files backed up        │
+│  • sqlite-vec backend       │  • Full restore manifest     │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 12: Lessons Learned</h2><br><br><h3>What Worked</h3><ul>
+<li>✅ <strong>Graphify + LLM Wiki are complementary</strong> — graph for structure, wiki for narrative</li>
+<li>✅ <strong>Cron jobs handle routine work</strong> — agent only steps in for exceptions</li>
+<li>✅ <strong>Multi-agent reviews scale quality</strong> — 4 focused eyes > 1 general eye</li>
+<li>✅ <strong>Ollama works for semantic extraction</strong> — slow but functional and free</li>
+<li>✅ <strong>Git backup is essential</strong> — <code>gh repo sync --force</code> taught us this the hard way</li></ul><br><br><h3>What Didn't</h3><ul>
+<li>⚠️ <strong>Subagent timeouts</strong> — 2-minute limit hit at 16 tool calls for large ingests</li>
+<li>⚠️ <strong>Ollama is slow</strong> — qwen3.6:35b takes minutes; cloud LLM would be faster</li>
+<li>⚠️ <strong>Repo sync wipes local work</strong> — need to use <code>git push</code> not <code>gh repo sync --force</code></li>
+<li>⚠️ <strong>Search index needs manual rebuild</strong> — no auto-trigger on file changes yet</li></ul><br><br><h3>Open Questions</h3><ul>
+<li>❓ Should we add a cloud LLM API key for faster semantic extraction?</li>
+<li>❓ How often should full LLM extraction run vs AST-only updates?</li>
+<li>❓ Should we export an Obsidian vault for visual browsing?</li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 13: Future Roadmap</h2><br><br><h3>Phase 4 Ideas</h3><br><br><pre><code>┌─────────────────────────────────────────────────────────────┐
+│  SHORT TERM (This Week)                                     │
+│  • Add cloud LLM API key (Gemini/Claude)                    │
+│  • Set up Obsidian vault export                             │
+│  • Auto-rebuild search index on file changes                │
+│  • Add more sources to raw/ for testing                     │
+├─────────────────────────────────────────────────────────────┤
+│  MEDIUM TERM (This Month)                                   │
+│  • Integrate email/calendar into heartbeat checks           │
+│  • Build dashboard for system metrics                       │
+│  • Add property-based tests for path sanitization           │
+│  • Create CI pipeline for graph + wiki updates              │
+├─────────────────────────────────────────────────────────────┤
+│  LONG TERM (This Quarter)                                   │
+│  • Multiple workspace support (work, personal, projects)    │
+│  • Agent-to-agent messaging for cross-workspace queries     │
+│  • Automated P0 fix suggestions from code review findings   │
+│  • Deploy to cloud for 24/7 operation                       │
+└─────────────────────────────────────────────────────────────┘
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 14: Q&A</h2><br><br><strong>Resources:</strong><ul>
+<li>Repository: https://github.com/pixy56/avcpm.git</li>
+<li>Wiki: <code>wiki/index.md</code> in workspace</li>
+<li>Graph: <code>graphify-out/graph.html</code> (open in browser)</li>
+<li>Report: <code>reviews/AVCPM-CODE-REVIEW-2026-05-09.md</code></li></ul><br><br><strong>Contact:</strong> Matt via OpenClaw<br><br><hr class="page-break"/><br><br><em>End of Presentation</em>
+
+</body>
+</html>

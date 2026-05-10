@@ -8,7 +8,7 @@
     "hash": "8e51704261eb7c7ff74b4527c3bdeaca"
   },
   "/home/user/.openclaw/workspace/test_agent_auth_integration.py": {
-    "mtime": 1776674634.9533255,
+    "mtime": 1778374297.700225,
     "hash": "30f74818a10ccdcfc41b07b1c1747085"
   },
   "/home/user/.openclaw/workspace/test_avcpm_branch.py": {
@@ -16,7 +16,7 @@
     "hash": "7b2344043bde6022e8b6729547fa684e"
   },
   "/home/user/.openclaw/workspace/avcpm_commit.py": {
-    "mtime": 1776674010.456,
+    "mtime": 1778374297.698225,
     "hash": "3cd0db5b2578b85f8ba2f492e15c7f6e"
   },
   "/home/user/.openclaw/workspace/test_avcpm_wip.py": {
@@ -24,7 +24,7 @@
     "hash": "448a2d1c8667dc7db17f2e9f0c681cb3"
   },
   "/home/user/.openclaw/workspace/avcpm_conflict.py": {
-    "mtime": 1776674557.43917,
+    "mtime": 1778374297.698225,
     "hash": "a51145bc452ba667c82df152178476ed"
   },
   "/home/user/.openclaw/workspace/run_integration_tests.py": {
@@ -40,11 +40,11 @@
     "hash": "7570f7f58b19535d72fe51aae3586b5d"
   },
   "/home/user/.openclaw/workspace/avcpm_lifecycle.py": {
-    "mtime": 1776674146.894578,
+    "mtime": 1778374297.698225,
     "hash": "2ccd456f5d9b13b3c54cb2adb21d5fab"
   },
   "/home/user/.openclaw/workspace/avcpm_security.py": {
-    "mtime": 1776673788.4479651,
+    "mtime": 1778374297.699225,
     "hash": "483e68a449be08ba3e62ea01ae3aca98"
   },
   "/home/user/.openclaw/workspace/primes.py": {
@@ -52,11 +52,11 @@
     "hash": "7384c15499ad9279b01f255aac853c9c"
   },
   "/home/user/.openclaw/workspace/avcpm_merge.py": {
-    "mtime": 1776673510.9654052,
+    "mtime": 1778374297.698225,
     "hash": "ccb28a6785a5efec62342c24bbf817fe"
   },
   "/home/user/.openclaw/workspace/test_symlink_protection.py": {
-    "mtime": 1776675016.798268,
+    "mtime": 1778374297.700225,
     "hash": "b4a754bc79d13ec3685e284de7e2b45a"
   },
   "/home/user/.openclaw/workspace/avcpm_validate.py": {
@@ -64,11 +64,11 @@
     "hash": "c3e87922333ec646640ec8ec2f01380d"
   },
   "/home/user/.openclaw/workspace/test_ledger_integrity.py": {
-    "mtime": 1776674238.1991568,
+    "mtime": 1778374297.700225,
     "hash": "e360bd292ffdea6741c2dca0547a4e40"
   },
   "/home/user/.openclaw/workspace/test_key_encryption.py": {
-    "mtime": 1776674869.0680442,
+    "mtime": 1778374297.700225,
     "hash": "86bd85a90105d172e2de8e51848f4f54"
   },
   "/home/user/.openclaw/workspace/test_avcpm_validate.py": {
@@ -76,7 +76,7 @@
     "hash": "a0c8a278a247d043944b8bf54a461484"
   },
   "/home/user/.openclaw/workspace/avcpm_cli.py": {
-    "mtime": 1776674318.9159544,
+    "mtime": 1778374297.698225,
     "hash": "d2ee31ab82b27a8631b37d4b88eb29a4"
   },
   "/home/user/.openclaw/workspace/test_avcpm_integration.py": {
@@ -88,11 +88,11 @@
     "hash": "fb6ece327a7c6ca36cd3c0be0281e56e"
   },
   "/home/user/.openclaw/workspace/avcpm_branch.py": {
-    "mtime": 1776673904.210688,
+    "mtime": 1778374297.698225,
     "hash": "b5af07cdea308b0b093c3b21b385698f"
   },
   "/home/user/.openclaw/workspace/avcpm_auth.py": {
-    "mtime": 1776673928.5640762,
+    "mtime": 1778374297.698225,
     "hash": "fc2209f008c0bbcedb5f0c8e91c52110"
   },
   "/home/user/.openclaw/workspace/test_avcpm_lifecycle.py": {
@@ -100,7 +100,7 @@
     "hash": "ff2702f62f5a7301221d3b518bec4432"
   },
   "/home/user/.openclaw/workspace/avcpm_rollback.py": {
-    "mtime": 1776674052.8900704,
+    "mtime": 1778374297.699225,
     "hash": "d6b3bfa1b89f1dda2f0171b1dc99ee49"
   },
   "/home/user/.openclaw/workspace/test_prime_calculator.py": {
@@ -116,11 +116,11 @@
     "hash": "5ecfaeb44803b82264fb41abd76b7f05"
   },
   "/home/user/.openclaw/workspace/avcpm_agent.py": {
-    "mtime": 1776674902.002708,
+    "mtime": 1778374297.697225,
     "hash": "3b8475691b1c5206116d7f4263e89234"
   },
   "/home/user/.openclaw/workspace/avcpm_wip.py": {
-    "mtime": 1776674633.9506168,
+    "mtime": 1778374297.699225,
     "hash": "6429be9d95920b2c7ba2aae65beab37b"
   },
   "/home/user/.openclaw/workspace/test_avcpm_conflict.py": {
@@ -128,7 +128,7 @@
     "hash": "7a946bc7ac01a644fdfdbc98d6ef76e0"
   },
   "/home/user/.openclaw/workspace/test_avcpm_agent.py": {
-    "mtime": 1776674793.9353044,
+    "mtime": 1778374297.700225,
     "hash": "da89fbb939f8c5bfb65b5e809512580f"
   },
   "/home/user/.openclaw/workspace/run_tests.py": {
@@ -136,7 +136,7 @@
     "hash": "52fba1e58455046bf092dff5e2de749a"
   },
   "/home/user/.openclaw/workspace/avcpm_task.py": {
-    "mtime": 1776674261.375415,
+    "mtime": 1778374297.699225,
     "hash": "50d760233c9c9da22f338c5d6fec8c5b"
   },
   "/home/user/.openclaw/workspace/avcpm_status.py": {
@@ -152,39 +152,43 @@
     "hash": "1bf819ce81f07b9dd2256dd08c5fbfe6"
   },
   "/home/user/.openclaw/workspace/avcpm_ledger_integrity.py": {
-    "mtime": 1776674294.2002797,
+    "mtime": 1778374297.698225,
     "hash": "f91dbf1bfb17c16acc09c0c531e459d9"
   },
   "/home/user/.openclaw/workspace/tools/wiki-lint.py": {
-    "mtime": 1777616427.1946154,
+    "mtime": 1778374297.7012608,
     "hash": "61aa14daa2877792b844c0a9f6c356f6"
   },
   "/home/user/.openclaw/workspace/tools/mcp-server.py": {
-    "mtime": 1777616971.6885657,
+    "mtime": 1778374297.703734,
     "hash": "996aec9f6f55814b1e9f5d090a8a8110"
   },
   "/home/user/.openclaw/workspace/tools/search-vault.py": {
-    "mtime": 1777616383.6910129,
+    "mtime": 1778374297.7012608,
     "hash": "aadd2b4b0492edeb2470399639290a03"
   },
   "/home/user/.openclaw/workspace/tools/mcp-wiki-ingest.py": {
-    "mtime": 1777616410.437383,
+    "mtime": 1778374297.700225,
     "hash": "c928dd0f5be9949dd79e754d03e629dd"
   },
   "/home/user/.openclaw/workspace/KEY_ENCRYPTION_CHANGES.md": {
-    "mtime": 1776675063.3157039,
+    "mtime": 1778374297.695225,
     "hash": "56ca04d88d5396da65f39bb89c08ecf2"
+  },
+  "/home/user/.openclaw/workspace/MEMORY.md": {
+    "mtime": 1778374297.7232254,
+    "hash": "a3bf6a6a36bcd30310a58db5b89606e8"
   },
   "/home/user/.openclaw/workspace/IDENTITY.md": {
     "mtime": 1776559155.469417,
     "hash": "b1e6204a91abae00d9c83818f3a93c5d"
   },
   "/home/user/.openclaw/workspace/avcpm_triage_plan.md": {
-    "mtime": 1777010841.1236548,
+    "mtime": 1778374297.699225,
     "hash": "99957d95ae33fbbd6ffcce38b64be505"
   },
   "/home/user/.openclaw/workspace/AGENTS.md": {
-    "mtime": 1778370981.4973378,
+    "mtime": 1778374297.7232254,
     "hash": "b40b9598a178fcdef23afcbc967e9a4c"
   },
   "/home/user/.openclaw/workspace/TEAM_WORKFLOW_GUIDE.md": {
@@ -207,16 +211,20 @@
     "mtime": 1777616930.412778,
     "hash": "637fd49b905dcc9b00e4ac5c738247d0"
   },
+  "/home/user/.openclaw/workspace/performance_review.md": {
+    "mtime": 1778374297.7472258,
+    "hash": "62029b85b26be964353abe4a2fd3801a"
+  },
   "/home/user/.openclaw/workspace/PATH_TRAVERSAL_INTEGRATION_REPORT.md": {
-    "mtime": 1776674099.3148148,
+    "mtime": 1778374297.695225,
     "hash": "86da345f3af42baa3585744a1ba353ab"
   },
   "/home/user/.openclaw/workspace/avcpm_multi_model_code_review.md": {
-    "mtime": 1777009667.2820282,
+    "mtime": 1778374297.698225,
     "hash": "5e5df5c81d72cf9cf05fd864f79bc322"
   },
   "/home/user/.openclaw/workspace/avcpm_a_grade_roadmap.md": {
-    "mtime": 1777014955.124032,
+    "mtime": 1778374297.697225,
     "hash": "deb64f95e578184ea3e7a986c61f1077"
   },
   "/home/user/.openclaw/workspace/USER.md": {
@@ -236,7 +244,7 @@
     "hash": "f0f12614af856e82e8b16ef9bb4009ac"
   },
   "/home/user/.openclaw/workspace/TOOLS.md": {
-    "mtime": 1777617128.4806647,
+    "mtime": 1778374297.703734,
     "hash": "848c2727828eea41558cb0f6bd6c6feb"
   },
   "/home/user/.openclaw/workspace/CODE_REVIEW_TESTING.md": {
@@ -244,11 +252,11 @@
     "hash": "f1b7d9281ea1c3e4664b5922472b4288"
   },
   "/home/user/.openclaw/workspace/README.md": {
-    "mtime": 1776668660.7591865,
-    "hash": "22822b2b9ea67028d2914b7a1fb5ff7e"
+    "mtime": 1778374297.685636,
+    "hash": "44cadca6dcf968dbe314cf582642e9b5"
   },
   "/home/user/.openclaw/workspace/WIKI.md": {
-    "mtime": 1778370885.184633,
+    "mtime": 1778374297.7232254,
     "hash": "27c41becaef2b296eb2b0f2d7a202468"
   },
   "/home/user/.openclaw/workspace/CODE_REVIEW_ARCHITECTURE.md": {
@@ -256,7 +264,7 @@
     "hash": "d141ef96e89f00bc3b028060c22bedf0"
   },
   "/home/user/.openclaw/workspace/sprint_triage_core_vcs.md": {
-    "mtime": 1777010352.5236502,
+    "mtime": 1778374297.700225,
     "hash": "d5a8c670450fb2db7bf05611a92259e2"
   },
   "/home/user/.openclaw/workspace/CHANGELOG.md": {
@@ -264,7 +272,7 @@
     "hash": "39b4cc433aaa0bd7488e372e42a39fb1"
   },
   "/home/user/.openclaw/workspace/LEDGER_INTEGRITY_REPORT.md": {
-    "mtime": 1776674586.4644825,
+    "mtime": 1778374297.695225,
     "hash": "04c8f04f75a3074bfe802837fe8a5270"
   },
   "/home/user/.openclaw/workspace/CODE_REVIEW_SECURITY.md": {
@@ -272,19 +280,19 @@
     "hash": "2946b40d4dc5dd3b1bae4ac0c1608eed"
   },
   "/home/user/.openclaw/workspace/SYMLINK_SECURITY_CHANGES.md": {
-    "mtime": 1776674950.2817461,
+    "mtime": 1778374297.695225,
     "hash": "f2321d49cac983457d8f5a85fd50aef6"
   },
   "/home/user/.openclaw/workspace/HEARTBEAT.md": {
-    "mtime": 1777616779.2385976,
-    "hash": "5b7024187438d6103525345d35c3bace"
+    "mtime": 1778374297.7232254,
+    "hash": "702ccc3b2c038fc40144e2ef77d856ee"
   },
   "/home/user/.openclaw/workspace/AGENT_AUTH_INTEGRATION_REPORT.md": {
-    "mtime": 1776674679.2595267,
+    "mtime": 1778374297.695225,
     "hash": "cd0328a688c155e2eeb85d273cecf40d"
   },
   "/home/user/.openclaw/workspace/PATH_TRAVERSAL_FIXES.md": {
-    "mtime": 1776673623.6623356,
+    "mtime": 1778374297.695225,
     "hash": "63788b0e5f7ac2a03b974b9da93bc1d7"
   },
   "/home/user/.openclaw/workspace/CODE_REVIEW_PERFORMANCE.md": {
@@ -296,119 +304,187 @@
     "hash": "820587f8ea373eac12158e916bcb26a3"
   },
   "/home/user/.openclaw/workspace/wiki/SCHEMA.md": {
-    "mtime": 1777616611.1581988,
+    "mtime": 1778374297.7012608,
     "hash": "be43d09d7d71974b33ffc06ada6c7322"
   },
   "/home/user/.openclaw/workspace/wiki/OBSIDIAN_SETUP.md": {
-    "mtime": 1777617087.973067,
+    "mtime": 1778374297.703734,
     "hash": "6e5228204ef8e94b532e31d10ced93d3"
   },
   "/home/user/.openclaw/workspace/wiki/glossary.md": {
-    "mtime": 1777616723.1397936,
+    "mtime": 1778374297.7018726,
     "hash": "69a6f9cdea52114d0cc494ed3efa59eb"
   },
+  "/home/user/.openclaw/workspace/wiki/lint.md": {
+    "mtime": 1778374297.7382257,
+    "hash": "febcd105c2778b882e48291795a66b73"
+  },
   "/home/user/.openclaw/workspace/wiki/index.md": {
-    "mtime": 1778370885.184633,
-    "hash": "52a52ac87794dd438ab414d3553707c3"
+    "mtime": 1778374297.748226,
+    "hash": "f5206bedcfdc182ff02a4f1b42c7257d"
   },
   "/home/user/.openclaw/workspace/wiki/log.md": {
-    "mtime": 1778372266.963133,
-    "hash": "aa05dd8004ec0dc08154060d7cbe7b9f"
+    "mtime": 1778374297.748226,
+    "hash": "83fa6261bcde5ecd53b5f3c6e86d33c5"
   },
   "/home/user/.openclaw/workspace/wiki/overview.md": {
-    "mtime": 1777615653.8398407,
+    "mtime": 1778374297.7018726,
     "hash": "43b74628a8943c8122c096209c2f48e6"
   },
   "/home/user/.openclaw/workspace/wiki/analyses/kb-landscape-2026-04.md": {
-    "mtime": 1777615708.4874308,
+    "mtime": 1778374297.7015228,
     "hash": "8b0b3b14518680a0dcfb6240db87ae9a"
   },
   "/home/user/.openclaw/workspace/wiki/analyses/convergence-implementation.md": {
-    "mtime": 1777616500.0666325,
+    "mtime": 1778374297.7014556,
     "hash": "aee5d03237ac71c979abc1e0699696a7"
   },
   "/home/user/.openclaw/workspace/wiki/sources/karpathy-llm-wiki.md": {
-    "mtime": 1777616486.183438,
+    "mtime": 1778374297.7018726,
     "hash": "d4cc3f5165df510c3dd2e7fa4a8450bd"
   },
+  "/home/user/.openclaw/workspace/wiki/sources/avcpm-code-review-2026-05-09.md": {
+    "mtime": 1778374297.748226,
+    "hash": "3c010cb1ed49d4e8bf52124bb6a3d158"
+  },
   "/home/user/.openclaw/workspace/wiki/sources/test-source.md": {
-    "mtime": 1777617553.130494,
+    "mtime": 1778374297.7142253,
     "hash": "c9a80fb0137902b0c4c93105d76e302f"
   },
   "/home/user/.openclaw/workspace/wiki/sources/obsidian-md.md": {
-    "mtime": 1777616679.9372766,
+    "mtime": 1778374297.7024808,
     "hash": "78864be940c63ddbaa830c3679b6683b"
   },
+  "/home/user/.openclaw/workspace/wiki/sources/llmwiki-vs-graphify.md": {
+    "mtime": 1778374297.7382257,
+    "hash": "82fcb22205d49a7ad41153223790176d"
+  },
+  "/home/user/.openclaw/workspace/wiki/concepts/path-traversal.md": {
+    "mtime": 1778374297.748226,
+    "hash": "51abe8336894bbc5e6aa31b79dcfc923"
+  },
   "/home/user/.openclaw/workspace/wiki/concepts/agent-memory-types.md": {
-    "mtime": 1777615694.1842742,
+    "mtime": 1778374297.7015228,
     "hash": "c68119768d8678d25d37f9937e7eea66"
   },
   "/home/user/.openclaw/workspace/wiki/concepts/mcp-protocol.md": {
-    "mtime": 1777617505.922753,
+    "mtime": 1778374297.7142253,
     "hash": "aae88de21314d19f80696f6968703d1c"
   },
+  "/home/user/.openclaw/workspace/wiki/concepts/knowledge-graph.md": {
+    "mtime": 1778374297.7372258,
+    "hash": "9e635b43ff54f66ea9bddc520a68c738"
+  },
+  "/home/user/.openclaw/workspace/wiki/concepts/personal-knowledge-management.md": {
+    "mtime": 1778374297.7372258,
+    "hash": "158305dbda6b49d971ecdf2acac2c131"
+  },
   "/home/user/.openclaw/workspace/wiki/concepts/wikilink.md": {
-    "mtime": 1777616733.7559457,
+    "mtime": 1778374297.7016616,
     "hash": "fa98072a0c1bd924a5d5c052e917fdf5"
   },
   "/home/user/.openclaw/workspace/wiki/concepts/hybrid-search.md": {
-    "mtime": 1777615682.927152,
+    "mtime": 1778374297.7016616,
     "hash": "cd8016a40ddc1e94471178a411dfef1b"
   },
+  "/home/user/.openclaw/workspace/wiki/concepts/code-review.md": {
+    "mtime": 1778374297.748226,
+    "hash": "109820411203a9ec609f7ab641cb033f"
+  },
   "/home/user/.openclaw/workspace/wiki/concepts/compounding-knowledge.md": {
-    "mtime": 1777615673.374049,
+    "mtime": 1778374297.7016616,
     "hash": "bf5eb9e5d56f6a008dd92f3aa2b29928"
   },
+  "/home/user/.openclaw/workspace/wiki/concepts/security-audit.md": {
+    "mtime": 1778374297.748226,
+    "hash": "3bf3dc95bdea5c0bc4caa67adb02c2f2"
+  },
+  "/home/user/.openclaw/workspace/wiki/concepts/multi-agent-coordination.md": {
+    "mtime": 1778374297.748226,
+    "hash": "5d30fe98911ac0a02ccb0aea5c4e4f99"
+  },
+  "/home/user/.openclaw/workspace/wiki/concepts/llm-wiki-pattern.md": {
+    "mtime": 1778374297.7372258,
+    "hash": "5e9b378819167e2644e3bd0c54b95e2e"
+  },
   "/home/user/.openclaw/workspace/wiki/entities/letta.md": {
-    "mtime": 1777616469.7052076,
+    "mtime": 1778374297.7018726,
     "hash": "9f42a3bef3f31d981fee2b190d385d08"
   },
   "/home/user/.openclaw/workspace/wiki/entities/cognee.md": {
-    "mtime": 1777616477.101311,
+    "mtime": 1778374297.7016616,
     "hash": "f53d111738d8c49b9fb9fd6c0f4ee17f"
   },
+  "/home/user/.openclaw/workspace/wiki/entities/safi-shamsi.md": {
+    "mtime": 1778374297.7382257,
+    "hash": "a8d5a58733c0f5c724415b8e7d0b14b0"
+  },
+  "/home/user/.openclaw/workspace/wiki/entities/andrej-karpathy.md": {
+    "mtime": 1778374297.7372258,
+    "hash": "35a565504cfc88aa12640ebf306d4bb6"
+  },
   "/home/user/.openclaw/workspace/wiki/entities/obsidian-md.md": {
-    "mtime": 1777616679.9373772,
+    "mtime": 1778374297.7018726,
     "hash": "8c8970519c167a007c03ecca98ba891f"
   },
   "/home/user/.openclaw/workspace/wiki/entities/mem0.md": {
-    "mtime": 1777616455.6640117,
+    "mtime": 1778374297.7018726,
     "hash": "96605c3da58bd07eb72e0dd180f5c2f6"
   },
   "/home/user/.openclaw/workspace/wiki/entities/karpathy-andrej.md": {
-    "mtime": 1777616699.2737057,
+    "mtime": 1778374297.7018726,
     "hash": "1de992ff2f224e42513107a01486eaf8"
   },
+  "/home/user/.openclaw/workspace/wiki/entities/graphify.md": {
+    "mtime": 1778374297.7382257,
+    "hash": "dd2c7661484e9fdf06efce54690c0acb"
+  },
+  "/home/user/.openclaw/workspace/wiki/entities/avcpm.md": {
+    "mtime": 1778374297.748226,
+    "hash": "6c83a0db45482fd7aa48f81f7cc7b07e"
+  },
+  "/home/user/.openclaw/workspace/wiki/comparisons/llmwiki-vs-graphify.md": {
+    "mtime": 1778374297.7372258,
+    "hash": "a5b898f959c9a413ab734bf83811628f"
+  },
   "/home/user/.openclaw/workspace/research/ai-agent-knowledge-bases-report.md": {
-    "mtime": 1777611369.3666718,
+    "mtime": 1778374297.699225,
     "hash": "27aebca083599de23f73399bd8c3bb6e"
   },
   "/home/user/.openclaw/workspace/research/convergence-implementation-guide.md": {
-    "mtime": 1777611914.1403944,
+    "mtime": 1778374297.700225,
     "hash": "80a93e0066f46a65bed6ee1934fce460"
   },
   "/home/user/.openclaw/workspace/raw/test-source.txt": {
-    "mtime": 1777617553.1303036,
+    "mtime": 1778374297.7142253,
     "hash": "3cd2a04c0d8e0e6c05eaad7d33ad8e0e"
   },
   "/home/user/.openclaw/workspace/raw/llmwiki-vs-graphify.md": {
-    "mtime": 1778372306.8697572,
+    "mtime": 1778374297.7372258,
     "hash": "2ca8d460df3acb3b506c2c519ab6a369"
   },
+  "/home/user/.openclaw/workspace/raw/AVCPM-CODE-REVIEW-2026-05-09.md": {
+    "mtime": 1778374297.7472258,
+    "hash": "0ed452f7274f2ab9287df21ff28b1d66"
+  },
   "/home/user/.openclaw/workspace/memory/2026-04-20-request-timed-out-before-a-res.md": {
-    "mtime": 1777615728.7286553,
+    "mtime": 1778374297.699225,
     "hash": "d77bc9821acbce09cfca2ec5b128f696"
   },
   "/home/user/.openclaw/workspace/memory/2026-04-20-dev-team-checkin.md": {
-    "mtime": 1777615728.7236552,
+    "mtime": 1778374297.699225,
     "hash": "aad3e20726a683dd909620f0fd4bcb45"
   },
   "/home/user/.openclaw/workspace/memory/index.md": {
-    "mtime": 1777615739.9537811,
+    "mtime": 1778374297.699225,
     "hash": "3156924a46da3dcd9bb335c539801d6c"
   },
   "/home/user/.openclaw/workspace/memory/2026-04-19-request-timed-out-before-a-res.md": {
-    "mtime": 1777615728.718655,
+    "mtime": 1778374297.699225,
     "hash": "56b16f4209f60e05dc4119bbe286ac85"
+  },
+  "/home/user/.openclaw/workspace/reviews/AVCPM-CODE-REVIEW-2026-05-09.md": {
+    "mtime": 1778374297.748226,
+    "hash": "0ed452f7274f2ab9287df21ff28b1d66"
   }
 }

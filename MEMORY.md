@@ -36,3 +36,10 @@ MEMORY.md is the **distilled essence** — not raw logs. Daily notes go in `memo
 - **Matt** prefers direct, factual communication.
 - **Timezone:** America/Chicago.
 - **Model:** ollama/kimi-k2.6:cloud for general chat.
+- **Email (agent's Google account):** pixy56@gmail.com — used for gog/Google Workspace operations
+- **Email (Matt's personal):** mpixler@gmail.com — send/share anything for Matt here
+
+## Communication
+
+- **Send to Matt:** mpixler@gmail.com
+- **Agent identity:** pixy56@gmail.com (Google Workspace, GitHub)
