@@ -44,6 +44,18 @@ Things like:
 
 - home-server → 192.168.1.100, user: admin
 
+### LLM Backend (Ollama)
+
+- **Ollama host:** `http://localhost:11434`
+- **Models available:** qwen3.6:35b (36B, slow but free), gemma4:31b, gemma4:latest (8B)
+- **Keep-alive:** `GRAPHIFY_OLLAMA_KEEP_ALIVE=30m` — keeps model loaded 30 min after last use
+  - Set in `~/.bashrc` (already done)
+  - Options: `30m`, `2h`, `-1` (permanent, max power draw)
+  - Current: 30 minutes (covers daily 4 AM extraction window)
+- **Context window:** Auto-calculated per prompt (env override: `GRAPHIFY_OLLAMA_NUM_CTX`)
+- **Timeout:** 600s default (override: `GRAPHIFY_API_TIMEOUT`)
+- **Trade-off:** Loaded 35B model = +200-400W GPU power draw. Unloaded = cold start takes 30-60s to load from disk.
+
 ### TTS
 
 - Preferred voice: "Nova" (warm, slightly British)
