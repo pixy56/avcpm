@@ -1,0 +1,11 @@
+{
+  "tabSize": 2,
+  "useTab": false,
+  "lineWrap": true,
+  "readableLineLength": true,
+  "showInlineTitle": true,
+  "strictLineBreaks": false,
+  "showFrontmatter": true,
+  "foldHeading": true,
+  "foldIndent": true
+}
