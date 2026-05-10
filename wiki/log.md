@@ -1,25 +1,25 @@
-# Wiki Log
-
 ---
 title: "Wiki Log"
 type: log
-created: 2026-05-01
-updated: 2026-05-01
+created: 2026-05-09
+updated: 2026-05-09
+tags: [log]
+status: stable
 ---
 
-## [2026-05-01] init | Wiki structure created
-Created SCHEMA.md, index.md, log.md, overview.md, glossary.md.
-Sources, concepts, analyses, entities directories initialized.
-System: Convergence layered knowledge base for Matt's OpenClaw workspace.
+# Wiki Log
 
-## [2026-05-01] analysis | KB landscape research filed
-Filed [[analyses/kb-landscape-2026-04]] and [[analyses/convergence-implementation]]
-based on parallel agent research on Karpathy llm-wiki.md, Obsidian.md,
-and general knowledge base landscape.
-Sources: [[sources/karpathy-llm-wiki]] (pending), [[sources/obsidian-md]] (pending)
+Chronological log of all ingest events and significant wiki updates.
 
+## 2026-05-09
 
-## [2026-05-01] auto | MCP server tested: read, write, search, lint all working. Created [[concepts/mcp-protocol]].
-
-## [2026-05-01] ingest | test-source
-Created [[sources/test-source]]. Raw: `test-source.txt`
+- **Wiki initialized.** Created `wiki/` directory structure, `WIKI.md` schema, `wiki/index.md`, and this log file.
+- **Graphify installed.** Initial workspace graph build pending.
+- **Graphify installed and built.** Initial code graph: 2665 nodes, 3573 edges, 251 communities. Report at `graphify-out/GRAPH_REPORT.md`.
+- **Graphify MCP server registered.** Added to `~/.openclaw/mcp-config.json` with `graph_query` tool.
+- **Graphify semantic extraction tested.** Ollama backend (qwen3.6:35b) works; `openai` package installed for Ollama-compatible API calls.
+- **Graphify cron scheduled.** Daily at 4:00 AM Chicago time: `graphify update .` (AST-only, no API cost).
+- **Source ingested.** `raw/llmwiki-vs-graphify.md` → created/updated 9 wiki pages: 1 source, 3 concepts, 4 entities, 1 comparison.
+- **Graph re-extracted.** New source included in graph; 2,251 nodes, 3,366 edges, 209 communities.
+- **Search index rebuilt.** sqlite-vec + model2vec index recreated: 69 documents indexed.
+- **Phase 3 complete.** All items done: lint cron, search index, MEMORY.md.

@@ -1,10 +1,11 @@
 # HEARTBEAT.md
 
-## Wiki Maintenance (run every 6 hours)
-- [ ] Check for new files in `raw/` — if found, run ingest workflow
-- [ ] Review `wiki/log.md` for pending items
-- [ ] Run search index reindex if files changed
-- [ ] Weekly lint: check broken links, orphans, stale pages
+## Wiki Maintenance (run every 6 hours via cron)
+- [x] **Cron:** `raw-check-ingest` — Check for new files in `raw/` — if found, run ingest workflow
+- [x] **Cron:** `wiki-log-review` — Review `wiki/log.md` for pending items
+- [x] **Cron:** `wiki-weekly-lint` — Weekly lint: broken links, orphans, stale pages
+- [x] **MEMORY.md created** — Curated long-term memory backbone
+- [ ] Search index reindex — Run when files change (TBD if needed)
 
 ## Regular Checks
 - [ ] Email inbox
