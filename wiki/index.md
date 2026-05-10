@@ -20,21 +20,27 @@ Master index for the OpenClaw workspace knowledge wiki.
 - [[Hybrid Search]] — Combining semantic and keyword search
 - [[MCP Protocol]] — Model Context Protocol for tool serving
 - [[Wikilink]] — Internal linking convention for markdown wikis
+- [[Code Review]] — Systematic source code examination
+- [[Security Audit]] — Security-focused code review
+- [[Path Traversal]] — CWE-22 vulnerability (found in AVCPM review)
+- [[Multi-Agent Coordination]] — Patterns for AI agent collaboration
 
 ## Entities
 
 - [[Graphify (tool)]] — Safi Shamsi's knowledge graph extraction tool
 - [[Andrej Karpathy]] — AI researcher, originator of LLM Wiki pattern
 - [[Safi Shamsi]] — AI engineer, creator of Graphify
-- [[Cognee]] — AI memory framework (existing)
-- [[Letta]] — AI memory framework (existing)
-- [[Mem0]] — AI memory framework (existing)
-- [[Obsidian]] — Markdown-based personal knowledge base (existing)
+- [[AVCPM]] — Async Version Control Project Management system
+- [[Cognee]] — AI memory framework
+- [[Letta]] — AI memory framework
+- [[Mem0]] — AI memory framework
+- [[Obsidian]] — Markdown-based personal knowledge base
 
 ## Sources
 
-- [[Karpathy LLM Wiki Gist]] — Original LLM Wiki specification (existing)
+- [[Karpathy LLM Wiki Gist]] — Original LLM Wiki specification
 - [[LLM Wiki vs Graphify: Comparing PKM Approaches]] — `raw/llmwiki-vs-graphify.md`
+- [[AVCPM Code Review Report (2026-05-09)]] — Multi-agent review of AVCPM project
 
 ## Comparisons
 

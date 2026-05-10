@@ -23,3 +23,5 @@ Chronological log of all ingest events and significant wiki updates.
 - **Graph re-extracted.** New source included in graph; 2,251 nodes, 3,366 edges, 209 communities.
 - **Search index rebuilt.** sqlite-vec + model2vec index recreated: 69 documents indexed.
 - **Phase 3 complete.** All items done: lint cron, search index, MEMORY.md.
+- **AVCPM code review completed.** 4 specialized agents reviewed architecture, security, performance, and testing. 17,000-word report at `reviews/AVCPM-CODE-REVIEW-2026-05-09.md`. Ingested into wiki: 1 source, 3 concepts, 2 entities.
+- **Code pushed to GitHub.** All wiki infrastructure and review report committed.
