@@ -24,31 +24,36 @@
 <body>
 <h1>OpenClaw Knowledge Management System</h1><br><br><strong>Presenter:</strong> Matt  
 <strong>Date:</strong> 2026-05-09  
-<strong>System:</strong> OpenClaw + Graphify + LLM Wiki<br><br><hr class="page-break"/><br><br><h2>Slide 1: Executive Summary</h2><br><br><strong>What We Built:</strong> A fully automated, AI-powered personal knowledge management system that turns your workspace into a living, queryable knowledge base.<br><br><strong>Core Philosophy:</strong><ul>
+<strong>System:</strong> OpenClaw + Graphify + LLM Wiki + Self-Improving Agent<br><br><hr class="page-break"/><br><br><h2>Slide 1: Executive Summary</h2><br><br><strong>What We Built:</strong> A fully automated, AI-powered personal knowledge management system that turns your workspace into a living, queryable, self-improving knowledge base.<br><br><strong>Core Philosophy:</strong><ul>
 <li>Human curates what goes in</li>
 <li>LLM does all maintenance</li>
-<li>Knowledge compounds over time</li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 2: Feature List</h2><br><br><h3>Knowledge Capture</h3><ul>
+<li>Knowledge compounds over time</li>
+<li>System learns from its own mistakes</li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 2: Feature List</h2><br><br><h3>Knowledge Capture</h3><ul>
 <li>✅ <strong>Raw Sources</strong> — Drop articles, PDFs, transcripts, code into <code>raw/</code></li>
 <li>✅ <strong>Auto-Ingest</strong> — AI reads, summarizes, and files sources every 6 hours</li>
-<li>✅ <strong>GitHub Integration</strong> — Pull code repos for analysis and review</li></ul><br><br><h3>Knowledge Organization</h3><ul>
+<li>✅ <strong>GitHub Integration</strong> — Pull code repos for analysis and review</li>
+<li>✅ <strong>Multi-Engine Search</strong> — <code>web_search</code> for discovery, <code>web_fetch</code> for deep dives</li></ul><br><br><h3>Knowledge Organization</h3><ul>
 <li>✅ <strong>Graphify Knowledge Graph</strong> — Auto-extracts entities, relationships, clusters from all files</li>
 <li>2,251 nodes, 3,366 edges, 209 communities</li>
 <li>71.5× token reduction vs naive file-reading</li>
 <li>✅ <strong>LLM Wiki</strong> — Markdown articles with <code>[[wikilinks]]</code> and YAML frontmatter</li>
 <li>Sources, Concepts, Entities, Comparisons</li>
-<li>✅ <strong>Memory System</strong> — Daily logs + curated long-term <code>MEMORY.md</code></li></ul><br><br><h3>Knowledge Retrieval</h3><ul>
+<li>✅ <strong>Memory System</strong> — Daily logs + curated long-term <code>MEMORY.md</code></li>
+<li>✅ <strong>Structured Learnings</strong> — <code>.learnings/</code> directory for errors, insights, best practices</li></ul><br><br><h3>Knowledge Retrieval</h3><ul>
 <li>✅ <strong>Semantic Search</strong> — sqlite-vec + model2vec hybrid search (78 docs indexed)</li>
 <li>✅ <strong>Graph Queries</strong> — BFS/DFS traversal of knowledge graph</li>
 <li>✅ <strong>Wiki Index</strong> — Master index linking all pages</li>
-<li>✅ <strong>MCP Server</strong> — Native <code>graph_query</code> tool for agents</li></ul><br><br><h3>Automation</h3><ul>
+<li>✅ <strong>MCP Server</strong> — Native <code>graph_query</code> tool for agents</li>
+<li>✅ <strong>Obsidian Dashboard</strong> — Dataview-powered learning dashboard</li></ul><br><br><h3>Automation</h3><ul>
 <li>✅ <strong>Daily Graph Updates</strong> — <code>graphify update .</code> at 4:00 AM (AST-only, no API cost)</li>
 <li>✅ <strong>6-Hour Wiki Ingest</strong> — Checks <code>raw/</code> for new sources</li>
 <li>✅ <strong>6-Hour Log Review</strong> — Follows up on pending items</li>
 <li>✅ <strong>Weekly Lint</strong> — Broken links, orphans, stale pages</li>
-<li>✅ <strong>Heartbeat Checks</strong> — Periodic system maintenance</li></ul><br><br><h3>Agent Team Coordination</h3><ul>
+<li>✅ <strong>Heartbeat Checks</strong> — Periodic system maintenance + <code>.learnings/</code> review</li></ul><br><br><h3>Agent Team Coordination</h3><ul>
 <li>✅ <strong>Multi-Agent Reviews</strong> — 4 specialized agents (Architecture, Security, Performance, Testing)</li>
 <li>✅ <strong>Unified Reports</strong> — Compiled into single prioritized report</li>
-<li>✅ <strong>Wiki Integration</strong> — Reports auto-ingested into knowledge base</li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 3: Architecture Overview</h2><br><br><pre><code>┌─────────────────────────────────────────────────────────────────┐
+<li>✅ <strong>Wiki Integration</strong> — Reports auto-ingested into knowledge base</li>
+<li>✅ <strong>Shared Learnings</strong> — AGENTS.md "Multi-Agent Learnings" section inherited by all agents</li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 3: Architecture Overview</h2><br><br><pre><code>┌─────────────────────────────────────────────────────────────────┐
 │                        OPENCLAW WORKSPACE                         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
@@ -99,6 +104,20 @@
 │                      │                                         │
 │                      ▼                                         │
 │  ┌─────────────────────────────────────────────────────────┐  │
+│  │                  SELF-IMPROVING LAYER                  │  │
+│  │                                                        │  │
+│  │  ┌──────────────┐      ┌──────────────┐              │  │
+│  │  │ .learnings/  │─────▶│  Review +    │              │  │
+│  │  │ ERRORS.md    │      │  Promote     │              │  │
+│  │  │ LEARNINGS.md │─────▶│  to:         │              │  │
+│  │  │ FEATURES.md  │      │  AGENTS.md   │              │  │
+│  │  └──────────────┘      │  MEMORY.md   │              │  │
+│  │                        │  TOOLS.md    │              │  │
+│  │                        └──────────────┘              │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                      │                                         │
+│                      ▼                                         │
+│  ┌─────────────────────────────────────────────────────────┐  │
 │  │                  MEMORY SYSTEM                           │  │
 │  │                                                        │  │
 │  │  ┌──────────────┐      ┌──────────────┐              │  │
@@ -135,6 +154,7 @@
 │ • raw/*.pdf     │
 │ • Code repos    │
 │ • Session notes │
+│ • Search results│
 └────────┬────────┘
          │
          ├────────────────────────┐
@@ -160,6 +180,7 @@
 │                 │
 │ • graph.json    │  ← Machine-readable
 │ • wiki/*.md     │  ← Human-readable
+│ • .learnings/   │  ← Self-improving
 │ • index.md      │  ← Navigation
 │ • MEMORY.md     │  ← Long-term memory
 └────────┬────────┘
@@ -228,6 +249,7 @@ A knowledge management pattern originated by Andrej Karpathy. Instead of RAG (re
 │  • wiki/concepts/ — Abstract ideas  │
 │  • wiki/entities/ — People/tools  │
 │  • wiki/comparisons/ — Side-by-side │
+│  • wiki/Learning-Dashboard.md       │
 └─────────────────────────────────────┘
                     │
                     ▼
@@ -237,6 +259,7 @@ A knowledge management pattern originated by Andrej Karpathy. Instead of RAG (re
 │  • Articles, PDFs, transcripts        │
 │  • Code repositories                │
 │  • Research documents               │
+│  • Search results                   │
 └─────────────────────────────────────┘
 </code></pre><br><br><h3>Core Operations</h3>
 1. <strong>Ingest</strong> — AI reads source → writes summary → cascades updates → updates index + log
@@ -254,7 +277,125 @@ source_refs: []
 related:<ul>
 <li>[[Linked Page]]</li></ul>
 <hr class="page-break"/>
-</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 7: Component Deep Dive — Automation Layer</h2><br><br><h3>Cron Jobs (4 Active)</h3><br><br><pre><code>┌────────────────────────────────────────┐
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 7: Component Deep Dive — Self-Improving Agent</h2><br><br><h3>What It Is</h3>
+A skill that logs errors and learnings to structured markdown, then promotes broadly applicable insights to project memory.<br><br><h3>The Learning Loop</h3><br><br><pre><code>┌─────────────────┐
+│   Experience    │
+│  (error/insight)│
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   LOG           │
+│  .learnings/    │
+│                 │
+│ • ERRORS.md     │
+│ • LEARNINGS.md  │
+│ • FEATURES.md   │
+│ • CRON_LOG.md   │
+│ • PERFORMANCE.md│
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   REVIEW        │
+│  (weekly cron)  │
+│                 │
+│ • Same error    │
+│   >2x?         │
+│ • Pattern       │
+│   validated?    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   PROMOTE       │
+│                 │
+│ • SOUL.md       │ ← Behavioral
+│ • AGENTS.md     │ ← Workflows
+│ • TOOLS.md      │ ← Tool gotchas
+│ • MEMORY.md     │ ← Knowledge
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   IMPROVE       │
+│  Next session   │
+│  inherits       │
+│  learnings      │
+└─────────────────┘
+</code></pre><br><br><h3>Current <code>.learnings/</code> Population</h3><br><br><tr><td>File</td><td>Entries</td><td>Status</td></tr>
+<tr><td>------</td><td>---------</td><td>--------</td></tr>
+<tr><td><code>ERRORS.md</code></td><td>9 errors</td><td>5 resolved, 4 pending</td></tr>
+<tr><td><code>LEARNINGS.md</code></td><td>0 (ready for input)</td><td>—</td></tr>
+<tr><td><code>FEATURE_REQUESTS.md</code></td><td>0 (ready for input)</td><td>—</td></tr>
+<tr><td><code>CRON_LOG.md</code></td><td>0 (ready for input)</td><td>—</td></tr>
+<tr><td><code>PERFORMANCE.md</code></td><td>7 baselines</td><td>Tracked</td></tr><br><br><h3>Sample Error Entry</h3>
+<pre><code>markdown
+<h2>[ERR-20260509-001] Subagent timeout at 16 tool calls</h2>
+<strong>Priority:</strong> high | <strong>Status:</strong> resolved | <strong>Area:</strong> tool
+<strong>Summary:</strong> Wiki ingest subagent timed out after 16 tool calls / 2 minutes
+<strong>Details:</strong> Large codebase review exceeded subagent budget
+<strong>Suggested Fix:</strong> Ingest >10 files → main session, not subagent
+<strong>Recovery:</strong> Retry in main session; consider splitting into smaller tasks
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 8: Component Deep Dive — LLM Backend (Ollama)</h2><br><br><h3>What It Is</h3>
+Local LLM inference server running multiple models for different tasks.<br><br><h3>Model Zoo (Current)</h3><br><br><tr><td>Model</td><td>Size</td><td>Role</td><td>Speed</td><td>Notes</td></tr>
+<tr><td>-------</td><td>------</td><td>------</td><td>-------</td><td>-------</td></tr>
+<tr><td><strong>qwen3.6:35b</strong></td><td>36B</td><td>Semantic extraction (Graphify)</td><td>🟡 Slow (3-4 min)</td><td>Primary backend for doc/image analysis</td></tr>
+<tr><td><strong>gemma4:31b</strong></td><td>31B</td><td>General chat fallback</td><td>🟡 Medium</td><td>Alternative when qwen is busy</td></tr>
+<tr><td><strong>gemma4:latest</strong></td><td>8B</td><td>Fast tasks</td><td>🟢 Fast</td><td>Lightweight, low latency</td></tr>
+<tr><td><strong>kimi-k2.6:cloud</strong></td><td>—</td><td>General chat (default)</td><td>🟢 Fast</td><td>Cloud-backed, always available</td></tr>
+<tr><td><strong>kimi-k2.5:cloud</strong></td><td>—</td><td>Backup chat</td><td>🟢 Fast</td><td>Fallback model</td></tr>
+<tr><td><strong>glm-5.1:cloud</strong></td><td>—</td><td>Code tasks</td><td>🟢 Fast</td><td>General purpose</td></tr>
+<tr><td><strong>minimax-m2.7:cloud</strong></td><td>—</td><td>Creative tasks</td><td>🟢 Fast</td><td>Diverse capabilities</td></tr><br><br><h3>Performance Characteristics</h3><br><br><tr><td>Task</td><td>Model</td><td>Typical Time</td><td>Cost</td></tr>
+<tr><td>------</td><td>-------</td><td>-------------</td><td>------</td></tr>
+<tr><td>Graphify AST update (no LLM)</td><td>—</td><td>~5s</td><td>FREE</td></tr>
+<tr><td>Graphify semantic extract</td><td>qwen3.6:35b</td><td>180-240s</td><td>FREE (local GPU)</td></tr>
+<tr><td>General chat</td><td>kimi-k2.6:cloud</td><td>~2s</td><td>FREE (cloud)</td></tr>
+<tr><td>Code review (subagent)</td><td>kimi-k2.6:cloud</td><td>60-120s</td><td>FREE (cloud)</td></tr>
+<tr><td>Wiki ingest (subagent)</td><td>kimi-k2.6:cloud</td><td>~120s</td><td>FREE (cloud)</td></tr>
+<tr><td>Search index rebuild</td><td>model2vec</td><td>~10s</td><td>FREE</td></tr><br><br><h3>Trade-offs</h3><br><br><tr><td>Approach</td><td>Pros</td><td>Cons</td></tr>
+<tr><td>----------</td><td>------</td><td>------</td></tr>
+<tr><td><strong>Ollama local (qwen3.6:35b)</strong></td><td>Free, private, no API keys</td><td>Slow (3-4 min per extraction), GPU-bound</td></tr>
+<tr><td><strong>Cloud models (kimi-k2.6)</strong></td><td>Fast, reliable, no hardware</td><td>Requires internet, provider-dependent</td></tr>
+<tr><td><strong>Hybrid (current)</strong></td><td>Best of both: AST is free/fast, semantic uses cloud when needed</td><td>Complexity of two backends</td></tr><br><br><h3>Open Question</h3>
+<strong>Should we add a cloud LLM API key (Gemini/Claude/OpenAI) for faster semantic extraction?</strong><ul>
+<li>Current: qwen3.6:35b is functional but 3-4 minutes per semantic extraction</li>
+<li>Cloud option: Gemini 3 Flash, Claude 3.5 Sonnet, GPT-4.1 Mini — 10-30 seconds</li>
+<li>Cost: ~$0.50-3.00 per 1M tokens (semantic extraction is ~10-50K tokens)</li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 9: Component Deep Dive — Backup System</h2><br><br><h3>What It Is</h3>
+A comprehensive backup strategy covering configuration, knowledge, and automation.<br><br><h3>Backup Location</h3>
+<pre><code>~/.openclaw/backups/20260509-200201/
+</code></pre><br><br><h3>What's Backed Up (68 files, 2.4 MB)</h3><br><br><tr><td>Component</td><td>Files</td><td>Notes</td></tr>
+<tr><td>-----------</td><td>-------</td><td>-------</td></tr>
+<tr><td><strong>Config</strong></td><td>5</td><td>openclaw.json, mcp-config.json, exec-approvals, update-check</td></tr>
+<tr><td><strong>Cron jobs</strong></td><td>4</td><td>graphify daily, wiki ingest 6h, log review 6h, weekly lint</td></tr>
+<tr><td><strong>Identity</strong></td><td>—</td><td>Agent identity files</td></tr>
+<tr><td><strong>Credentials</strong></td><td>—</td><td>API keys, tokens (encrypted)</td></tr>
+<tr><td><strong>Workspace config</strong></td><td>6</td><td>AGENTS.md, SOUL.md, USER.md, MEMORY.md, WIKI.md, HEARTBEAT.md</td></tr>
+<tr><td><strong>Memory</strong></td><td>—</td><td>Daily session logs (memory/YYYY-MM-DD.md)</td></tr>
+<tr><td><strong>Wiki</strong></td><td>16+</td><td>All wiki pages (sources, concepts, entities, comparisons)</td></tr>
+<tr><td><strong>Raw sources</strong></td><td>—</td><td>Source inputs</td></tr>
+<tr><td><strong>Graphify</strong></td><td>2</td><td>GRAPH_REPORT.md, graph.json</td></tr>
+<tr><td><strong>Logs</strong></td><td>—</td><td>Session logs</td></tr><br><br><h3>What's NOT Backed Up (by design)</h3><br><br><tr><td>Component</td><td>Why Excluded</td><td>Recovery</td></tr>
+<tr><td>-----------</td><td>-------------</td><td>----------</td></tr>
+<tr><td><code>graphify-out/cache/</code></td><td>Large AST cache, rebuildable</td><td><code>graphify update .</code> (5s)</td></tr>
+<tr><td><code>.git/</code></td><td>Git history on GitHub</td><td><code>git clone</code></td></tr>
+<tr><td><code>tools-venv/</code></td><td>Python venv, reinstallable</td><td><code>pip install -r requirements.txt</code></td></tr>
+<tr><td><code>graphify-venv/</code></td><td>Graphify venv, reinstallable</td><td><code>pip install graphifyy</code></td></tr><br><br><h3>GitHub as Secondary Backup</h3><ul>
+<li>Repository: https://github.com/pixy56/avcpm.git</li>
+<li>All wiki infrastructure, reports, and config version-controlled</li>
+<li><code>git push</code> after significant changes</li></ul><br><br><h3>Restore Process</h3>
+<pre><code>bash
+<h1>1. Stop OpenClaw gateway</h1>
+<h1>2. Copy backup files back to ~/.openclaw/</h1>
+cp -r ~/.openclaw/backups/20260509-200201/* ~/.openclaw/
+<h1>3. Restore git repo (if needed)</h1>
+git clone https://github.com/pixy56/avcpm.git ~/.openclaw/workspace
+<h1>4. Reinstall Python environments</h1>
+python3 -m venv ~/.openclaw/tools-venv
+python3 -m venv ~/.openclaw/graphify-venv
+<h1>5. Restart gateway</h1>
+<h1>6. Verify: openclaw cron list</h1>
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 10: Component Deep Dive — Automation Layer</h2><br><br><h3>Cron Jobs (4 Active in OpenClaw Scheduler)</h3><br><br><pre><code>┌────────────────────────────────────────┐
 │  graphify-daily-update                 │
 │  Schedule: 0 4 <em> </em> * (4:00 AM CDT)     │
 │  Action: graphify update .              │
@@ -296,7 +437,7 @@ related:<ul>
        ├───────▶ Create/update entities
        ├───────▶ Update index.md
        └───────▶ Append to log.md
-</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 8: Component Deep Dive — Multi-Agent Review System</h2><br><br><h3>Review Team Structure</h3><br><br><pre><code>┌─────────────────────────────────────────┐
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 11: Component Deep Dive — Multi-Agent Review System</h2><br><br><h3>Review Team Structure</h3><br><br><pre><code>┌─────────────────────────────────────────┐
 │           ORCHESTRATOR (You / Main)       │
 │           Coordinates, delegates           │
 └──────────────┬────────────────────────────┘
@@ -329,12 +470,21 @@ related:<ul>
             │  • Entity pages     │
             │  • Log entry        │
             └─────────────────────┘
-</code></pre><br><br><h3>AVCPM Review Results</h3><br><br><tr><td>Reviewer</td><td>Runtime</td><td>Tokens</td><td>Key Finding</td></tr>
+</code></pre><br><br><h3>Shared Agent Context (AGENTS.md)</h3>
+All future agents inherit known anti-patterns at startup:<ul>
+<li><strong>Architecture:</strong> <code>sys.exit()</code> in libs, CLI/lib conflation, non-unique IDs, tight coupling</li>
+<li><strong>Security:</strong> Path traversal, plaintext approval, symlink-following, TOCTOU races</li>
+<li><strong>Performance:</strong> No file locking, monolithic JSON, no LRU cache, O(n²) traversals</li>
+<li><strong>Testing:</strong> Untested auth, security, ledger integrity, mixed frameworks</li></ul><br><br><h3>Orchestrator Rules</h3><ul>
+<li>Ingest >10 files → main session (subagent timeout at 16 tools)</li>
+<li>Large repos (>10k lines) → split into 4+ focused subagents</li>
+<li>Repos with auth/security → boost Security agent to 24 tools</li>
+<li>Repos with 0 tests → skip Testing agent, redirect budget to Security</li></ul><br><br><h3>AVCPM Review Results</h3><br><br><tr><td>Reviewer</td><td>Runtime</td><td>Tokens</td><td>Key Finding</td></tr>
 <tr><td>----------</td><td>---------</td><td>--------</td><td>-------------</td></tr>
 <tr><td>Architecture</td><td>1m21s</td><td>221K</td><td>CLI/library conflation, non-unique commit IDs</td></tr>
 <tr><td>Security</td><td>4m2s</td><td>110K</td><td><strong>3 Critical</strong> path traversal vulnerabilities</td></tr>
 <tr><td>Performance</td><td>1m56s</td><td>352K</td><td>No caching, no file locking, O(n²) operations</td></tr>
-<tr><td>Testing</td><td>2m2s</td><td>385K</td><td>5 modules untested, mixed frameworks</td></tr><br><br><hr class="page-break"/><br><br><h2>Slide 9: Integration Points</h2><br><br><h3>How Components Connect</h3><br><br><pre><code>┌─────────────────────────────────────────────────────────────┐
+<tr><td>Testing</td><td>2m2s</td><td>385K</td><td>5 modules untested, mixed frameworks</td></tr><br><br><hr class="page-break"/><br><br><h2>Slide 12: Integration Points</h2><br><br><h3>How Components Connect</h3><br><br><pre><code>┌─────────────────────────────────────────────────────────────┐
 │  EXTERNAL INPUTS                                            │
 │  • User messages  • GitHub repos  • Raw files  • Web pages  │
 └──────────────────────────┬────────────────────────────────────┘
@@ -401,7 +551,7 @@ related:<ul>
     }
   }
 }
-</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 10: Use Case — AVCPM Code Review</h2><br><br><h3>Scenario</h3>
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 13: Use Case — AVCPM Code Review</h2><br><br><h3>Scenario</h3>
 "Review my AVCPM project on GitHub. I want a comprehensive report."<br><br><h3>What Happened</h3><br><br><pre><code>1. INGEST
    ├─ Clone/sync repo
    ├─ Drop report into raw/
@@ -424,7 +574,7 @@ related:<ul>
 <li><strong>17,000-word report</strong> with 19 findings</li>
 <li><strong>3 Critical</strong> security vulnerabilities identified</li>
 <li><strong>Wiki updated</strong> with 6 new pages</li>
-<li><strong>All changes version-controlled</strong></li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 11: Key Metrics Dashboard</h2><br><br><pre><code>┌─────────────────────────────────────────────────────────────┐
+<li><strong>All changes version-controlled</strong></li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 14: Key Metrics Dashboard</h2><br><br><pre><code>┌─────────────────────────────────────────────────────────────┐
 │                    SYSTEM METRICS                             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
@@ -432,7 +582,7 @@ related:<ul>
 │  • 2,251 nodes               │  • 16+ pages                 │
 │  • 3,366 edges               │  • 4 categories               │
 │  • 209 communities           │  • 78 documents indexed        │
-│  • 86% high-confidence        │                              │
+│  • 86% high-confidence        │  • Learning Dashboard (Dataview)│
 │                                                              │
 │  AUTOMATION                  │  REVIEWS                     │
 │  • 4 cron jobs active        │  • 4 specialized agents      │
@@ -440,35 +590,50 @@ related:<ul>
 │  • Daily graph updates       │  • 19 findings               │
 │  • Weekly lint              │  • 8 P0 action items         │
 │                                                              │
-│  SEARCH                      │  STORAGE                     │
+│  SELF-IMPROVING              │  LLM BACKEND                 │
+│  • 9 errors logged           │  • 7 models available        │
+│  • 5 resolved, 4 pending     │  • Ollama (local) + Cloud    │
+│  • 7 performance baselines  │  • qwen3.6:35b (36B params)  │
+│  • AGENTS.md learnings       │  • kimi-k2.6:cloud (default) │
+│                                                              │
+│  SEARCH                      │  STORAGE / BACKUP            │
 │  • Hybrid semantic+keyword   │  • 2.4 MB backup             │
 │  • 78 docs indexed          │  • 68 files backed up        │
-│  • sqlite-vec backend       │  • Full restore manifest     │
+│  • sqlite-vec backend       │  • GitHub secondary backup   │
+│                                                              │
+│  OBSIDIAN                    │                              │
+│  • Vault opened              │                              │
+│  • Dataview dashboard        │                              │
+│  • Graph view enabled        │                              │
+│  • Templates configured      │                              │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
-</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 12: Lessons Learned</h2><br><br><h3>What Worked</h3><ul>
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 15: Lessons Learned</h2><br><br><h3>What Worked</h3><ul>
 <li>✅ <strong>Graphify + LLM Wiki are complementary</strong> — graph for structure, wiki for narrative</li>
 <li>✅ <strong>Cron jobs handle routine work</strong> — agent only steps in for exceptions</li>
 <li>✅ <strong>Multi-agent reviews scale quality</strong> — 4 focused eyes > 1 general eye</li>
 <li>✅ <strong>Ollama works for semantic extraction</strong> — slow but functional and free</li>
-<li>✅ <strong>Git backup is essential</strong> — <code>gh repo sync --force</code> taught us this the hard way</li></ul><br><br><h3>What Didn't</h3><ul>
+<li>✅ <strong>Git backup is essential</strong> — <code>gh repo sync --force</code> taught us this the hard way</li>
+<li>✅ <strong>Self-improving skill adds structure</strong> — <code>.learnings/</code> turns chaos into patterns</li></ul><br><br><h3>What Didn't</h3><ul>
 <li>⚠️ <strong>Subagent timeouts</strong> — 2-minute limit hit at 16 tool calls for large ingests</li>
 <li>⚠️ <strong>Ollama is slow</strong> — qwen3.6:35b takes minutes; cloud LLM would be faster</li>
 <li>⚠️ <strong>Repo sync wipes local work</strong> — need to use <code>git push</code> not <code>gh repo sync --force</code></li>
-<li>⚠️ <strong>Search index needs manual rebuild</strong> — no auto-trigger on file changes yet</li></ul><br><br><h3>Open Questions</h3><ul>
+<li>⚠️ <strong>Search index needs manual rebuild</strong> — no auto-trigger on file changes yet</li>
+<li>⚠️ <strong>Cron jobs documented but not verified</strong> — assumed they were installed, needed check</li></ul><br><br><h3>Open Questions</h3><ul>
 <li>❓ Should we add a cloud LLM API key for faster semantic extraction?</li>
 <li>❓ How often should full LLM extraction run vs AST-only updates?</li>
-<li>❓ Should we export an Obsidian vault for visual browsing?</li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 13: Future Roadmap</h2><br><br><h3>Phase 4 Ideas</h3><br><br><pre><code>┌─────────────────────────────────────────────────────────────┐
+<li>❓ Should we export an Obsidian vault for visual browsing?</li>
+<li>❓ When should we promote pending <code>.learnings/</code> to MEMORY.md?</li></ul><br><br><hr class="page-break"/><br><br><h2>Slide 16: Future Roadmap</h2><br><br><h3>Phase 4 Ideas</h3><br><br><pre><code>┌─────────────────────────────────────────────────────────────┐
 │  SHORT TERM (This Week)                                     │
-│  • Add cloud LLM API key (Gemini/Claude)                    │
-│  • Set up Obsidian vault export                             │
+│  • Add cloud LLM API key (Gemini/Claude) for fast extract   │
+│  • Populate .learnings/LEARNINGS.md with first insights   │
+│  • Set up Obsidian Dataview dashboard                       │
 │  • Auto-rebuild search index on file changes                │
-│  • Add more sources to raw/ for testing                     │
 ├─────────────────────────────────────────────────────────────┤
 │  MEDIUM TERM (This Month)                                   │
 │  • Integrate email/calendar into heartbeat checks           │
-│  • Build dashboard for system metrics                       │
-│  • Add property-based tests for path sanitization           │
+│  • Build system metrics dashboard (Grafana/obsidian)          │
+│  • Weekly .learnings/ review cron (promote to MEMORY.md)   │
 │  • Create CI pipeline for graph + wiki updates              │
 ├─────────────────────────────────────────────────────────────┤
 │  LONG TERM (This Quarter)                                   │
@@ -477,11 +642,13 @@ related:<ul>
 │  • Automated P0 fix suggestions from code review findings   │
 │  • Deploy to cloud for 24/7 operation                       │
 └─────────────────────────────────────────────────────────────┘
-</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 14: Q&A</h2><br><br><strong>Resources:</strong><ul>
+</code></pre><br><br><hr class="page-break"/><br><br><h2>Slide 17: Q&A</h2><br><br><strong>Resources:</strong><ul>
 <li>Repository: https://github.com/pixy56/avcpm.git</li>
 <li>Wiki: <code>wiki/index.md</code> in workspace</li>
 <li>Graph: <code>graphify-out/graph.html</code> (open in browser)</li>
-<li>Report: <code>reviews/AVCPM-CODE-REVIEW-2026-05-09.md</code></li></ul><br><br><strong>Contact:</strong> Matt via OpenClaw<br><br><hr class="page-break"/><br><br><em>End of Presentation</em>
+<li>Learning Dashboard: <code>wiki/Learning-Dashboard.md</code> (requires Dataview)</li>
+<li>Reports: <code>reviews/AVCPM-CODE-REVIEW-2026-05-09.md</code></li>
+<li>Self-Improving Report: <code>reviews/SELF-IMPROVING-AGENT-INTEGRATION-REPORT.md</code></li></ul><br><br><strong>Contact:</strong> Matt via OpenClaw<br><br><hr class="page-break"/><br><br><em>End of Presentation</em>
 
 </body>
 </html>
