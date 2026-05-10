@@ -213,6 +213,40 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
 
+## Multi-Agent Learnings
+
+Learnings from past multi-agent reviews that all future agents should inherit.
+
+### Architecture Agent — Known Anti-Patterns
+- **sys.exit() in library functions** — breaks API contracts. Found in AVCPM commit.py, merge.py, task.py.
+- **CLI/library conflation** — every module being both CLI and library. Found in AVCPM all modules.
+- **Non-unique commit IDs** — timestamp-based IDs collide under rapid commits.
+- **Tight coupling without hook registry** — core workflows import 5-7 sibling modules directly.
+
+### Security Agent — Known Vulnerability Patterns
+- **Path traversal via unsanitized user input** — task IDs, file paths, staging paths. AVCPM had 3 critical instances.
+- **Plaintext approval strings** — searching for "APPROVED" in text files. No crypto verification.
+- **Symlink-following in backup/restore** — os.path.isdir() follows symlinks to /etc.
+- **TOCTOU races** — check-then-operate on symlinks in safe_copy().
+
+### Performance Agent — Bottleneck Signatures
+- **No file locking** — multi-agent usage corrupts state via race conditions.
+- **Monolithic JSON registries** — single file rewritten entirely on every change.
+- **Absence of LRU cache** — every lookup re-reads JSON from disk.
+- **O(n²) graph traversals** — get_dependents(), would_create_cycle() on dense graphs.
+
+### Testing Agent — Coverage Blind Spots
+- **Untested auth/session modules** — challenge-response, encryption entirely untested.
+- **Untested security/sanitization** — path traversal, symlink attacks not exercised.
+- **Untested ledger integrity** — hash chain, tamper detection not verified.
+- **Mixed test frameworks** — unittest + pytest + standalone scripts in same repo.
+
+### Orchestrator Rules
+- **Ingest >10 files → main session, not subagent** — subagent timeout at 16 tools.
+- **Large repos (>10k lines) → split into 4+ focused subagents** — architecture, security, performance, testing.
+- **Repos with auth/security modules → boost Security agent to 24 tools**
+- **Repos with 0 test files → skip Testing agent, redirect budget to Security**
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
