@@ -8,15 +8,79 @@ from datetime import datetime
 VAULT = Path.home() / ".openclaw/workspace/wiki"
 
 
+
+import unicodedata
+
+
+def normalize_slug(name):
+    """Normalize a wikilink target into a comparable slug."""
+    # Handle paths like sources/foo → foo
+    name = name.split('/')[-1]
+    # Strip optional display text: [[target|Display]] → target
+    name = name.split('|')[0]
+    slug = re.sub(r'[^a-z0-9]+', '-', name.lower().strip()).strip('-')
+    return slug
+
+
+# Shared alias mapping: display_name → canonical_slug
+ALIASES = {
+    'wikilinks': 'wikilink',
+    'obsidian': 'obsidian-md',
+    'karpathy-llm-wiki-gist': 'karpathy-llm-wiki',
+    'llm-wiki-vs-graphify-comparing-pkm-approaches': 'llmwiki-vs-graphify',
+    'avcpm-code-review-report-2026-05-09': 'avcpm-code-review-2026-05-09',
+    'llm-wiki-vs-graphify': 'llmwiki-vs-graphify',
+    'graphify-tool': 'graphify',
+    'async-version-control': 'avcpm',
+    'performance-review': 'code-review',
+    'testing-review': 'code-review',
+    'input-validation': 'security-audit',
+    'cryptographic-signing': 'security-audit',
+    'multi-search-engine-skill-analysis': 'multi-search-engine-skill',
+    'security-assessment-multi-search-engine-skill': 'multi-search-engine-security-assessment',
+    'self-improving-agent-skill-analysis': 'self-improving-agent-skill',
+    'agents': 'agents',
+    'agents-md': 'agents',
+    'soul': 'soul',
+    'soul-md': 'soul',
+    'tools': 'tools',
+    'tools-md': 'tools',
+    'memory': 'memory',
+    'memory-md': 'memory',
+    'terms-of-service-compliance': 'terms-of-service-compliance',
+    'terms-of-service': 'terms-of-service-compliance',
+}
+# Reverse map for orphan detection: canonical_slug → set of display slugs that point here
+CANONICAL_TO_ALIASES = {}
+for alias_slug, canonical in ALIASES.items():
+    CANONICAL_TO_ALIASES.setdefault(canonical, set()).add(alias_slug)
+
+
+def canonical_slug(name):
+    """Return canonical page slug for a wikilink target."""
+    slug = normalize_slug(name)
+    return ALIASES.get(slug, slug)
+
+
+def resolve_wikilink(link, all_pages):
+    """Check if a wikilink target resolves to any existing page."""
+    if canonical_slug(link) in all_pages:
+        return True
+    return False
+
+
+def strip_inline_code(text):
+    """Remove backtick code spans so [[...]] inside them is ignored."""
+    return re.sub(r'`[^`]*`', '', text)
+
+
 def find_broken_links():
-    all_pages = set(p.stem for p in VAULT.rglob("*.md"))
+    all_pages = set(normalize_slug(p.stem) for p in VAULT.rglob("*.md"))
     broken = []
     for page in VAULT.rglob("*.md"):
-        text = page.read_text(encoding="utf-8")
+        text = strip_inline_code(page.read_text(encoding="utf-8"))
         for link in re.findall(r'\[\[([^\]]+)\]\]', text):
-            # Handle paths like sources/foo or just foo
-            slug = link.split('/')[-1] if '/' in link else link
-            if slug not in all_pages:
+            if not resolve_wikilink(link, all_pages):
                 broken.append((page, link))
     return broken
 
@@ -24,15 +88,19 @@ def find_broken_links():
 def find_orphans():
     all_links = set()
     for page in VAULT.rglob("*.md"):
-        text = page.read_text(encoding="utf-8")
+        text = strip_inline_code(page.read_text(encoding="utf-8"))
         for link in re.findall(r'\[\[([^\]]+)\]\]', text):
-            slug = link.split('/')[-1] if '/' in link else link
+            slug = canonical_slug(link)
+            all_links.add(slug)
+            # Also add canonical and all its aliases
+            for alias in CANONICAL_TO_ALIASES.get(slug, ()):
+                all_links.add(alias)
             all_links.add(slug)
 
     orphans = []
-    exempt = {"index", "log", "overview", "glossary", "SCHEMA"}
+    exempt = {"index", "log", "lint", "overview", "glossary", "SCHEMA", "OBSIDIAN_SETUP", "Learning-Dashboard"}
     for page in VAULT.rglob("*.md"):
-        if page.stem not in all_links and page.stem not in exempt:
+        if normalize_slug(page.stem) not in all_links and page.stem not in exempt:
             orphans.append(page)
     return orphans
 
